@@ -84,67 +84,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // profiles에서 현재 total_points 조회
-    const { data: profileData, error: profileError } = await supabase
-      .from("profiles")
-      .select("total_points")
-      .eq("user_id", uid)
-      .single();
-
-    const currentTotal = !profileError && profileData ? (profileData.total_points || 0) : 0;
-    const newTotal = currentTotal + insertRow.point;
-
-    // profiles.total_points 업데이트 (없으면 upsert)
-    const { data: updatedProfile, error: updateError } = await supabase
-      .from("profiles")
-      .update({ total_points: newTotal })
-      .eq("user_id", uid)
-      .select()
-      .single();
-
-    if (updateError) {
-      const { data: upsertProfile, error: upsertError } = await supabase
-        .from("profiles")
-        .upsert({ user_id: uid, total_points: newTotal }, { onConflict: "user_id" })
-        .select()
-        .single();
-
-      if (upsertError) {
-        console.warn("Failed to update or upsert profile total_points", upsertError);
-      } else {
-        console.log("Upserted profile total points:", upsertProfile?.total_points);
-      }
-    } else {
-      console.log("Updated total points:", updatedProfile?.total_points);
-    }
-
-    // point_history 스키마에 맞춰 삽입: (event_type, points_delta, created_at, user_id)
-    const phRow: any = {
-      event_type: payload.reason || "run_completed",
-      points_delta: insertRow.point,
-      created_at: new Date().toISOString(),
-      user_id: uid,
-    };
-
-    const { data: phData, error: phError } = await supabase
-      .from("point_history")
-      .insert([phRow])
-      .select()
-      .single();
-
-    if (phError) {
-      console.error("Insert point_history error", phError);
-      return new Response(
-        JSON.stringify({
-          run: runData,
-          warning: "Run created but failed to insert point_history",
-          point_history_error: phError.message,
-        }),
-        { status: 201, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    return new Response(JSON.stringify({ run: runData, point_history: phData }), {
+    // DB 트리거가 profiles.total_points와 point_history를 처리한다고 가정하므로
+    // 여기서는 run 생성 결과만 반환합니다.
+    return new Response(JSON.stringify({ run: runData }), {
       status: 201,
       headers: { "Content-Type": "application/json" },
     });
