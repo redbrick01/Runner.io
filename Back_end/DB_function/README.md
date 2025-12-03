@@ -194,3 +194,13 @@
 | point | double precision | NULL | - |
 
 ### 4. **territories** - 유저 전체 점령 구역 관리 - 이 테이블 기준으로 유지 포인트 계산
+
+| 컬럼 이름 | 데이터 타입 | NULL 허용 | 기본값 / 제약 조건 |
+| --- | --- | --- | --- |
+| geom | geometry | NOT NULL | - |
+| area | double precision | NOT NULL | - |
+| base_point | double precision | NOT NULL | default 0 |
+| created_at | timestamp with time zone | NOT NULL | - |
+| updated_at | timestamp with time zone | NOT NULL | - |
+| user_id | uuid | NOT NULL | primary key, unique, foreign key references profiles(user_id) |
+| next_process_at | timestamp with time zone | NOT NULL | default now() + 30분(`00:30:00` interval) |
