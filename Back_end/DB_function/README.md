@@ -1,0 +1,154 @@
+# README / DB Function
+
+## 1. Trigger
+
+---
+
+### 1.1 trg_runs_points
+
+- `runs` 테이블에 새로운 데이터 추가되면 발동 **`AFTER INSERT`**
+- `handle_run_points()` 함수 실행
+
+---
+
+### 1.2 trg_handle_territory_schedule
+
+- `territories` 테이블의 `updated_at` (영토 최종 변경시간) 이 업데이트된 경우 발동 **`BEFORE UPDATE`**
+    - 유저가 러닝을 통해 영토를 획득
+
+---
+
+### 1.3 trg_process_run_geometry
+
+- `runs` 테이블에 새로운 데이터 추가되면 발동 **`BEFORE INSERT` ,**  **`BEFORE UPDATE`**
+    - 유저가 러닝을 통해 영토를 획득
+
+## 2 DB Function
+
+---
+
+### 2.1 handle_run_points
+
+- `runs` 테이블에 추가된 데이터를 분석
+- 해당 유저의 `profiles` 테이블의 `total_points` 데이터 업데이트
+- `point_history` 테이블에 변동기록 업데이트
+
+---
+
+### 2.2 handle_territory_schedule
+
+- `next_process_at` (다음 점령 유지 포인트 획득 타이머) 데이터를 updated_at  + 30분으로 초기화
+
+---
+
+### 2.3 process_run_geometry
+
+- `runs` 테이블에 추가된 `path_geom` 데이터를 분석
+- `path_geom` 데이터의 SRID 값 보정 (4326)
+- `clean_geom()` 라인 정리 및 단순화
+- `path_geom` 데이터의 시작점과 끝점의 거리 계산 - 10m 이내면 영토 점령 판정
+- `geom_to_polygon(ln)`
+- `subtract_territory_and_update(out_geom, NEW.user_id)` 상대 유저 영토와 폴리곤 연산 (정리)
+- `upsert_or_merge_territory(out_geom, NEW.user_id)` 기존 유저 영토와 폴리곤 연산 (병합)
+
+---
+
+### 2.4 clean_geom
+
+- GPS 기반 러닝 경로(LineString / MultiLineString)를 단순화, 클린업, 라인 병합, 좌표계 보정
+- Input: `geometry` (LineString / MultiLineString)
+- Output: `geometry` (깨끗한 LineString)
+- Exception Handling: 모든 오류 발생 시 원본 `in_geom`을 그대로 반환
+
+- `ST_Transform(in_geom, 5179)` EPSG:5179 (Korea 2000 / Central Belt) 변환 - m 기준 변환
+- `ST_SimplifyPreserveTopology(simplified_geom, 5.0)`  허용오차 5m 기준으로 폴리곤 단순화
+- `ST_Transform(simplified_geom, 4326)` 기본 SRID로 변환
+- `ST_LineMerge(simplified_geom)` MultiLineString을 하나의 LineString으로 병합.
+
+---
+
+### 2.5 geom_to_polygon
+
+- 러닝 경로(LineString)를 기반으로 폴리곤(Polygon / MultiPolygon)을 생성 파이프라인
+- Input: LineString 또는 MultiLineString
+- Output: Polygon 또는 MultiPolygon
+- Return NULL: 폴리곤 생성이 완전히 불가능한 경우
+
+- `ST_AddPoint(ln, ST_StartPoint(ln))` 시작점 포인트를 추가하여 폐곡선 생성
+- `ST_BuildArea(ST_UnaryUnion(ln_closed))` 여러라인을 하나로 병합후 폴리곤 생성 (1차 시도)
+- `ST_MakePolygon(ln_closed)` 기본 조건으로 폴리곤 생성 (2차 시도)
+- `ST_ConvexHull(ln_closed)` 강제 폴리곤 생성 (3차 시도)
+- `ST_MakeValid(poly)` self-intersection 문제 해결
+
+---
+
+### 2.6 subtract_territory_and_update
+
+- 새로 생성된 영토와 겹치는 다른 사용자들의 기존 영토를 차집합으로 갱신, 겹치는 영역을 제거하고 업데이트
+- Input: `target_geom` (geometry), `exclude_user_id` (uuid)
+
+- `territories` 테이블에서 `exclude_user_id`를 제외한 다른 모든 사용자의 영토를 순회
+- `target_geom`과 겹치는지 `ST_Intersects` 로 검사
+- 겹칠 경우 `ST_Difference`를 사용하여 차집합 계산
+- `compute_area_and_base()` 면적과 base_point 업데이트
+
+---
+
+### 2.7 upsert_or_merge_territory
+
+- 특정 사용자의 새로운 영토를 기존 영토와 병합, 새로 삽입 후 `territories` 테이블 갱신
+- Input: `p_out_geom`(geometry),  `p_user_id`  (uuid)
+
+- `territories` 테이블에서 사용자 존재 여부 확인
+- 존재하는 경우
+    - 기존 geom과 `p_out_geom`을 `ST_Union`으로 병합, 실패시 강제 병합
+    - `compute_area_and_base()` 면적과 base_point 업데이트
+    - `geom`, `area`, `base_point`, `updated_at` 갱신
+- 존재하지 않는 경우
+    - `p_out_geom`을 그대로 삽입
+    - 면적 및 base_point 계산 후 `created_at`, `updated_at` 설정
+
+---
+
+### 2.8 compute_area_and_base
+
+- 주어진 영토(`geom`)의 면적과 `base_point`를 계산하여 반환
+- Input: `geom` (geometry)
+- Output: `area_m2`(double precision), `base_point` (double precision)
+
+- `ST_Area(ST_Transform(geom, area_srid))` EPSG:5179 기준으로 면적 계산
+- `LN(area_m2) / LN(10)`  영토 유지 포인트 계산 (30분 기준)
+
+---
+
+### 2.9 get_territory_weight
+
+- `updated_at` 시간으로부터 경과 시간을 계산 후 가중치 반환
+- 점령후 0~4시간 100%
+- 점령후 4~8시간 70%
+- 점령후 8~12시간 30%
+- 점형 후 12시간 초과 10%
+
+---
+
+### 2.10 apply_territory_worker
+
+- `cron job` 1분마다 apply-territory-worker 호출
+- `next_process_at`가 만료된 영토에 대해 포인트를 적용하고, 처리 중복을 방지하기 위해 잠금 처리
+- `next_process_at <= now()`인 영토를 조회하고, 중복 제거 후 `v_limit`만큼 선택
+- 선택된 `user_id`의 `next_process_at`를 현재 시각 + `v_lock_interval`로 업데이트
+- `apply_territory_points(v_user_ids)` 호출하여 실제 포인트를 적용
+
+---
+
+### 2.11 apply_territory_points
+
+- 선택된 유저들 포인트를 `profiles.total_points` 반영, 변경 내역 `point_history`기록, 다음 처리 시점(`next_process_at`) 갱신
+- Input: `p_user_ids` (uuid)
+
+- `base_point`와 `updated_at` 기반 가중치(`weight`) 계산
+- 최종 포인트(`points_delta`) = `base_point * weight`
+- `next_process_at` = 기존 `next_process_at` + 30분
+- `profiles.total_points`에 `points_delta` 누적
+- `point_history` 테이블에 `event_type='territory_points'`로 기록
+- 실제 포인트가 적용된 유저만 `territories.next_process_at` 갱신
