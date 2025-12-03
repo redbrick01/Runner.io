@@ -3,38 +3,21 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*", // 개발용: 프로덕션에서는 특정 origin만 허용하세요
-  "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-client-info",
-  "Access-Control-Allow-Credentials": "true",
-};
-
-function withCors(headers: HeadersInit = {}) {
-  return {
-    ...CORS_HEADERS,
-    ...headers,
-  };
-}
-
 Deno.serve(async (req: Request) => {
-    
   try {
     const url = new URL(req.url);
 
     // Handle preflight
     if (req.method === "OPTIONS") {
       return new Response(null, {
-        status: 204,
-        headers: withCors({ "Content-Length": "0" }),
+        status: 204, headers: { "Content-Type": "application/json" },
       });
     }
 
     // Enforce allowed methods
     if (req.method !== "POST") {
       return new Response(JSON.stringify({ error: "Method not allowed" }), {
-        status: 405,
-        headers: withCors({ "Content-Type": "application/json" }),
+        status: 405, headers: { "Content-Type": "application/json" },
       });
     }
 
@@ -42,8 +25,7 @@ Deno.serve(async (req: Request) => {
     const contentType = req.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) {
       return new Response(JSON.stringify({ error: "Expected application/json" }), {
-        status: 400,
-        headers: withCors({ "Content-Type": "application/json" }),
+        status: 400, headers: { "Content-Type": "application/json" },
       });
     }
 
@@ -55,8 +37,7 @@ Deno.serve(async (req: Request) => {
 
     if (!token) {
       return new Response(JSON.stringify({ error: "Missing access token" }), {
-        status: 401,
-        headers: withCors({ "Content-Type": "application/json" }),
+        status: 401, headers: { "Content-Type": "application/json" },
       });
     }
 
@@ -64,8 +45,7 @@ Deno.serve(async (req: Request) => {
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData?.user) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: withCors({ "Content-Type": "application/json" }),
+        status: 401, headers: { "Content-Type": "application/json" },
       });
     }
     const user = userData.user;
@@ -81,7 +61,7 @@ Deno.serve(async (req: Request) => {
       if (newPassword.length < 8) {
         return new Response(
           JSON.stringify({ error: "Password must be at least 8 characters long" }),
-          { status: 400, headers: withCors({ "Content-Type": "application/json" }) }
+          { status: 400, headers: { "Content-Type": "application/json" },}
         );
       }
 
@@ -97,7 +77,7 @@ Deno.serve(async (req: Request) => {
         console.error("Password update error:", pwError);
         return new Response(
           JSON.stringify({ error: "Failed to update password", details: pwError.message || pwError }),
-          { status: 500, headers: withCors({ "Content-Type": "application/json" }) }
+          { status: 500, headers: { "Content-Type": "application/json" },}
         );
       }
 
@@ -124,8 +104,7 @@ Deno.serve(async (req: Request) => {
       if (updateError) {
         console.error("DB update error:", updateError);
         return new Response(JSON.stringify({ error: "Failed to update profile" }), {
-          status: 500,
-          headers: withCors({ "Content-Type": "application/json" }),
+          status: 500, headers: { "Content-Type": "application/json" },
         });
       }
       result.profile = updated;
@@ -133,20 +112,18 @@ Deno.serve(async (req: Request) => {
 
     if (Object.keys(result).length === 0) {
       return new Response(JSON.stringify({ error: "No valid fields to update" }), {
-        status: 400,
-        headers: withCors({ "Content-Type": "application/json" }),
+        status: 400, headers: { "Content-Type": "application/json" },
       });
     }
 
     return new Response(JSON.stringify({ result }), {
-      status: 200,
-      headers: withCors({ "Content-Type": "application/json" }),
+      status: 200, headers: { "Content-Type": "application/json" },
     });
+    
   } catch (err) {
     console.error("Function error:", err);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: withCors({ "Content-Type": "application/json" }),
+      status: 500, headers: { "Content-Type": "application/json" },
     });
   }
 });
