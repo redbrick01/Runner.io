@@ -35,6 +35,17 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  # Supabase
+  supabase_flutter: ^2.6.0
+  flutter_dotenv: ^5.0.2
+
+  # REST API
+  http: ^1.1.0
+
+  # State management
+  provider: ^6.1.0
+
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
