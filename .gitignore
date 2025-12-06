@@ -1,0 +1,43 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.melody/
+.idea
+android/.gradle
+android/local.properties
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+
+# Xcode / iOS
+ios/Flutter/flutter_export_environment.sh
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/.generated/
+Runner/GeneratedPluginRegistrant.*
+xcuserdata/
+DerivedData/
+
+# VSCode / IntelliJ
+.vscode/
+*.iml
+
+# Web build
+web/build/
+
+# Linux / Windows artifacts
+linux/build/
+windows/build/
+
+# Firebase Crashlytics
+crashlytics-build.properties
