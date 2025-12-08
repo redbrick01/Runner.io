@@ -41,3 +41,6 @@ windows/build/
 
 # Firebase Crashlytics
 crashlytics-build.properties
+
+.env
+*.env
