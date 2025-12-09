@@ -6,6 +6,26 @@ import 'package:geolocator/geolocator.dart';
 import '../../core/models/run_result.dart';
 import 'run_result_screen.dart';
 
+double computeInitialPoint(double distanceMeters, Duration duration) {
+  // 거리/시간이 0이면 포인트 0
+  if (distanceMeters <= 0 || duration.inSeconds <= 0) {
+    return 0;
+  }
+
+  // d: km
+  final dKm = distanceMeters / 1000.0;
+
+  // v: km/h
+  final hours = duration.inSeconds / 3600.0;
+  final v = dKm / hours;
+
+  const vRef = 10.0; // 기준 속도 (km/h)
+  const kV = 0.3; // 속도 가중치 (백엔드 문서에 0.2~0.4라고 되어 있던 값)
+
+  final sInit = dKm * (1 + kV * (v / vRef)) * 10.0;
+  return sInit;
+}
+
 class RunningScreen extends StatefulWidget {
   const RunningScreen({super.key});
 
@@ -161,6 +181,8 @@ class _RunningScreenState extends State<RunningScreen> {
 
     final end = DateTime.now();
 
+    final point = computeInitialPoint(_distanceMeters, _elapsed);
+
     final result = RunResult(
       startAt: _startTime!,
       endAt: end,
@@ -169,8 +191,12 @@ class _RunningScreenState extends State<RunningScreen> {
       route: List<LatLng>.from(_route),
       calories: _calories,
       areaKm2: 0,
-      point: 0,
+      point: point,
     );
+
+    setState(() {
+      _isRunning = false;
+    });
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => RunResultScreen(result: result)),

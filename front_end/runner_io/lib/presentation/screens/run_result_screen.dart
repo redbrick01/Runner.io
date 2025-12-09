@@ -121,25 +121,17 @@ class RunResultScreen extends StatelessWidget {
                               ),
                             ),
                             onPressed: () async {
-                              try {
-                                // Supabase run-create 호출
-                                await RunService.instance.saveRun(result);
+                              // 1) 일단 백엔드에 시도는 해보고 (실패해도 앱 흐름은 계속)
+                              await RunService.instance.saveRun(result);
 
-                                // 저장 완료되면 홈으로 (기존 스택 제거)
-                                if (context.mounted) {
-                                  Navigator.of(context).pushAndRemoveUntil(
-                                    MaterialPageRoute(
-                                      builder: (_) => const HomeScreen(),
-                                    ),
-                                    (route) => false,
-                                  );
-                                }
-                              } catch (_) {
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('저장에 실패했습니다.')),
-                                );
-                              }
+                              // 2) 언제나 홈 화면으로 이동 (기존 스택 전부 제거)
+                              if (!context.mounted) return;
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute(
+                                  builder: (_) => const HomeScreen(),
+                                ),
+                                (route) => false,
+                              );
                             },
                             child: const Text('SAVE'),
                           ),
