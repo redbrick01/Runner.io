@@ -2,25 +2,21 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/models/run_result.dart';
 import 'run_result_screen.dart';
 
 double computeInitialPoint(double distanceMeters, Duration duration) {
-  // 거리/시간이 0이면 포인트 0
-  if (distanceMeters <= 0 || duration.inSeconds <= 0) {
-    return 0;
-  }
+  if (distanceMeters <= 0 || duration.inSeconds <= 0) return 0;
 
-  // d: km
   final dKm = distanceMeters / 1000.0;
 
-  // v: km/h
   final hours = duration.inSeconds / 3600.0;
   final v = dKm / hours;
 
-  const vRef = 10.0; // 기준 속도 (km/h)
-  const kV = 0.3; // 속도 가중치 (백엔드 문서에 0.2~0.4라고 되어 있던 값)
+  const vRef = 10.0;
+  const kV = 0.3;
 
   final sInit = dKm * (1 + kV * (v / vRef)) * 10.0;
   return sInit;
@@ -47,13 +43,9 @@ class _RunningScreenState extends State<RunningScreen> {
 
   bool _isRunning = false;
 
-  // 하트레이트/칼로리 (아직 기능 X → 더미 데이터)
-  int _heartRate = 0;
+  int _heartRate = 0; 
   double _calories = 0;
 
-  // -----------------------
-  // 계산용 getter
-  // -----------------------
   double get _distanceKm => _distanceMeters / 1000;
 
   String get _formattedDuration {
@@ -67,7 +59,6 @@ class _RunningScreenState extends State<RunningScreen> {
     if (_distanceKm <= 0) return "--:--";
 
     final secPerKm = _elapsed.inSeconds / _distanceKm;
-
     final totalSecondsPerKm = secPerKm.round();
 
     final minutes = (totalSecondsPerKm ~/ 60).toString().padLeft(2, '0');
@@ -76,11 +67,8 @@ class _RunningScreenState extends State<RunningScreen> {
     return "$minutes:$seconds";
   }
 
-  // --------------------------
-  // Google Map 기본 카메라
-  // --------------------------
   final CameraPosition _initialCameraPosition = const CameraPosition(
-    target: LatLng(37.5665, 126.9780), // 서울 임시 좌표
+    target: LatLng(37.5665, 126.9780),
     zoom: 15,
   );
 
@@ -95,9 +83,6 @@ class _RunningScreenState extends State<RunningScreen> {
     };
   }
 
-  // --------------------------
-  // Lifecycle
-  // --------------------------
   @override
   void initState() {
     super.initState();
@@ -112,11 +97,7 @@ class _RunningScreenState extends State<RunningScreen> {
     super.dispose();
   }
 
-  // --------------------------
-  // RUN 시작
-  // --------------------------
   Future<void> _startRun() async {
-    // 위치 권한 체크
     var perm = await Geolocator.checkPermission();
     if (perm == LocationPermission.denied ||
         perm == LocationPermission.deniedForever) {
@@ -144,7 +125,6 @@ class _RunningScreenState extends State<RunningScreen> {
       CameraUpdate.newLatLng(LatLng(pos.latitude, pos.longitude)),
     );
 
-    // 위치 스트림
     _positionSub = Geolocator.getPositionStream().listen((p) {
       final newPoint = LatLng(p.latitude, p.longitude);
 
@@ -162,7 +142,6 @@ class _RunningScreenState extends State<RunningScreen> {
       });
     });
 
-    // 타이머 시작
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() {
         _elapsed = DateTime.now().difference(_startTime!);
@@ -170,10 +149,10 @@ class _RunningScreenState extends State<RunningScreen> {
     });
   }
 
-  // --------------------------
-  // STOP 버튼
-  // --------------------------
-  void _onStopPressed() {
+  // --------------------------------------------------
+  // STOP → 기록 계산 + Supabase 저장 + 결과 화면 이동
+  // --------------------------------------------------
+  Future<void> _onStopPressed() async {
     if (!_isRunning || _startTime == null) return;
 
     _positionSub?.cancel();
@@ -194,18 +173,34 @@ class _RunningScreenState extends State<RunningScreen> {
       point: point,
     );
 
-    setState(() {
-      _isRunning = false;
-    });
+    setState(() => _isRunning = false);
+
+    // 🔥 Supabase 저장
+    final userId = Supabase.instance.client.auth.currentUser!.id;
+
+    try {
+      await Supabase.instance.client.from("runs").insert({
+        "user_id": userId,
+        "started_at": _startTime!.toIso8601String(),
+        "ended_at": end.toIso8601String(),
+        "duration": _elapsed.inSeconds,
+        "distance": _distanceMeters,
+        "initial_score": point,
+      });
+
+      print("🔥 Supabase 업로드 성공!");
+    } catch (e) {
+      print("❌ Supabase 업로드 실패: $e");
+    }
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => RunResultScreen(result: result)),
     );
   }
 
-  // --------------------------
+  // --------------------------------------------------
   // UI
-  // --------------------------
+  // --------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -217,7 +212,6 @@ class _RunningScreenState extends State<RunningScreen> {
           children: [
             const SizedBox(height: 12),
 
-            // 지도
             Container(
               height: size.height * 0.45,
               margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -240,7 +234,6 @@ class _RunningScreenState extends State<RunningScreen> {
 
             const SizedBox(height: 20),
 
-            // 아래 카드
             Expanded(
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -260,32 +253,17 @@ class _RunningScreenState extends State<RunningScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _StatItem(
-                              label: "Duration",
-                              value: _formattedDuration,
-                            ),
-                            _StatItem(
-                              label: "Distance",
-                              value: "${_distanceKm.toStringAsFixed(2)} km",
-                            ),
-                            _StatItem(
-                              label: "Avg. Pace",
-                              value: _formattedPace,
-                            ),
+                            _StatItem(label: "Duration", value: _formattedDuration),
+                            _StatItem(label: "Distance", value: "${_distanceKm.toStringAsFixed(2)} km"),
+                            _StatItem(label: "Avg. Pace", value: _formattedPace),
                           ],
                         ),
                         const SizedBox(height: 24),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _StatItem(
-                              label: "Heart Rate",
-                              value: _heartRate.toString(),
-                            ),
-                            _StatItem(
-                              label: "Calories",
-                              value: _calories.toStringAsFixed(0),
-                            ),
+                            _StatItem(label: "Heart Rate", value: _heartRate.toString()),
+                            _StatItem(label: "Calories", value: _calories.toStringAsFixed(0)),
                             const SizedBox(width: 80),
                           ],
                         ),
