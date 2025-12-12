@@ -37,71 +37,52 @@ class _RankingPanelState extends State<RankingPanel>
             color: Colors.black26,
             blurRadius: 10,
             offset: Offset(0, -2),
-          )
+          ),
         ],
       ),
-      child: Column(
+      child: ListView(
+        controller: widget.scrollController, // ⭐ 여기 하나만!
+        padding: EdgeInsets.zero,
         children: [
           const SizedBox(height: 10),
 
-          // 상단 손잡이 바
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[400],
-              borderRadius: BorderRadius.circular(999),
+          // 손잡이
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey,
+                borderRadius: BorderRadius.circular(999),
+              ),
             ),
           ),
 
           const SizedBox(height: 15),
 
-          // ------------------------------
-          // 🔥 "랭킹" 제목
-          // ------------------------------
+          // "랭킹" 제목
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 "랭킹",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
           ),
 
           const SizedBox(height: 10),
 
-          // ------------------------------
-          // 상단 탭 (개인랭킹 / 팀랭킹)
-          // ------------------------------
           _buildTabBar(),
-
           const SizedBox(height: 15),
-
-          // ------------------------------
-          // PVP / PVE 버튼
-          // ------------------------------
           _buildModeButtons(),
-
           const SizedBox(height: 15),
 
-          // ------------------------------
-          // 🔥 랭킹 리스트
-          // ------------------------------
-          Expanded(
-            child: ListView.builder(
-              controller: widget.scrollController,
-              itemCount: dummyRanking.length,
-              itemBuilder: (context, index) {
-                final item = dummyRanking[index];
-                return _buildRankingItem(item);
-              },
-            ),
-          ),
+          // 랭킹 아이템들
+          ...dummyRanking.map((item) => _buildRankingItem(item)).toList(),
+
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -198,16 +179,13 @@ class _RankingPanelState extends State<RankingPanel>
             color: Colors.black12,
             blurRadius: 6,
             offset: const Offset(0, 3),
-          )
+          ),
         ],
       ),
       child: Row(
         children: [
           // 프로필 아이콘
-          const CircleAvatar(
-            radius: 20,
-            backgroundColor: Colors.amber,
-          ),
+          const CircleAvatar(radius: 20, backgroundColor: Colors.amber),
           const SizedBox(width: 16),
 
           // 이름 + 거리
@@ -218,7 +196,9 @@ class _RankingPanelState extends State<RankingPanel>
                 Text(
                   item["name"],
                   style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 Text(
                   "${item["km"]} km",
@@ -243,10 +223,7 @@ class _RankingPanelState extends State<RankingPanel>
           // 포인트 표시
           Text(
             "${item["point"]}P",
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[700],
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
           ),
         ],
       ),
