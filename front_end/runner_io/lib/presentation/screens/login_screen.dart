@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'home_screen.dart';
 
+const bool TEST_LOGIN_MODE = true;
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -16,21 +18,32 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isLoading = false;
 
   Future<void> _login() async {
+    if (TEST_LOGIN_MODE) {
+      // 🔥 테스트용: 인증 없이 바로 홈 진입
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+      return;
+    }
+
+    // -------------------
+    // 실제 로그인 로직 (나중에 다시 사용)
+    // -------------------
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("이메일과 비밀번호를 입력해주세요.")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("이메일과 비밀번호를 입력해주세요.")));
       return;
     }
 
     setState(() => isLoading = true);
 
     try {
-      final response =
-          await Supabase.instance.client.auth.signInWithPassword(
+      final response = await Supabase.instance.client.auth.signInWithPassword(
         email: email,
         password: password,
       );
@@ -41,14 +54,14 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("로그인에 실패했습니다.")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("로그인에 실패했습니다.")));
       }
     } on AuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("로그인 실패: ${e.message}")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("로그인 실패: ${e.message}")));
     } finally {
       setState(() => isLoading = false);
     }
