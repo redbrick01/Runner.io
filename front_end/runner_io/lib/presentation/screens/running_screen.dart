@@ -43,7 +43,7 @@ class _RunningScreenState extends State<RunningScreen> {
 
   bool _isRunning = false;
 
-  int _heartRate = 0; 
+  int _heartRate = 0;
   double _calories = 0;
 
   double get _distanceKm => _distanceMeters / 1000;
@@ -159,7 +159,6 @@ class _RunningScreenState extends State<RunningScreen> {
     _timer?.cancel();
 
     final end = DateTime.now();
-
     final point = computeInitialPoint(_distanceMeters, _elapsed);
 
     final result = RunResult(
@@ -175,27 +174,32 @@ class _RunningScreenState extends State<RunningScreen> {
 
     setState(() => _isRunning = false);
 
-    // 🔥 Supabase 저장
-    final userId = Supabase.instance.client.auth.currentUser!.id;
+    // ✅ 1) 결과 화면으로 "무조건" 이동
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => RunResultScreen(result: result)),
+    );
+
+    // ✅ 2) 저장은 "백그라운드처럼" 시도 (실패해도 화면전환 영향 X)
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      debugPrint("❌ currentUser is null -> skip saving");
+      return;
+    }
 
     try {
       await Supabase.instance.client.from("runs").insert({
-        "user_id": userId,
+        "user_id": user.id,
         "started_at": _startTime!.toIso8601String(),
         "ended_at": end.toIso8601String(),
         "duration": _elapsed.inSeconds,
         "distance": _distanceMeters,
-        "initial_score": point,
+        "point": point,
       });
-
-      print("🔥 Supabase 업로드 성공!");
+      debugPrint("🔥 Supabase 업로드 성공!");
     } catch (e) {
-      print("❌ Supabase 업로드 실패: $e");
+      debugPrint("❌ Supabase 업로드 실패: $e");
     }
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => RunResultScreen(result: result)),
-    );
   }
 
   // --------------------------------------------------
@@ -253,17 +257,32 @@ class _RunningScreenState extends State<RunningScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _StatItem(label: "Duration", value: _formattedDuration),
-                            _StatItem(label: "Distance", value: "${_distanceKm.toStringAsFixed(2)} km"),
-                            _StatItem(label: "Avg. Pace", value: _formattedPace),
+                            _StatItem(
+                              label: "Duration",
+                              value: _formattedDuration,
+                            ),
+                            _StatItem(
+                              label: "Distance",
+                              value: "${_distanceKm.toStringAsFixed(2)} km",
+                            ),
+                            _StatItem(
+                              label: "Avg. Pace",
+                              value: _formattedPace,
+                            ),
                           ],
                         ),
                         const SizedBox(height: 24),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _StatItem(label: "Heart Rate", value: _heartRate.toString()),
-                            _StatItem(label: "Calories", value: _calories.toStringAsFixed(0)),
+                            _StatItem(
+                              label: "Heart Rate",
+                              value: _heartRate.toString(),
+                            ),
+                            _StatItem(
+                              label: "Calories",
+                              value: _calories.toStringAsFixed(0),
+                            ),
                             const SizedBox(width: 80),
                           ],
                         ),
