@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'presentation/screens/home_screen.dart';
+import 'presentation/screens/login_screen.dart';
 
 class RunnerApp extends StatelessWidget {
   const RunnerApp({super.key});
@@ -13,7 +13,7 @@ class RunnerApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: const LoginScreen(), 
     );
   }
 }
