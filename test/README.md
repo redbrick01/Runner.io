@@ -1,25 +1,31 @@
-# `test/` 테스트 구조
+# `test/`
 
-Flutter 단위 테스트와 widget test가 들어 있다.
+## 역할
 
-## 주요 테스트
+`test/`는 Flutter 단위 테스트와 widget test를 보관합니다. 러닝 계산 엔진처럼 UI와 분리된 핵심 로직과 주요 화면의 기본 렌더링/상태를 검증합니다.
+
+## 주요 파일
 
 | 파일 | 검증 대상 |
 |---|---|
-| `run_session_engine_test.dart` | 러닝 계산 엔진의 위치 샘플 처리, 거리, 일시정지, 재개, 비정상 샘플 거부 |
-| `login_page_test.dart` | 로그인 화면 기본 렌더링/입력 |
-| `signup_page_test.dart` | 회원가입 화면 기본 렌더링/입력 |
-| `running_map_page_test.dart` | 위치 권한 실패/지도 화면 상태 일부 |
+| `run_session_engine_test.dart` | 위치 샘플 처리, 거리 계산, 일시정지/재개, 비정상 샘플 거부 등 러닝 계산 엔진 |
+| `login_page_test.dart` | 로그인 화면 기본 렌더링과 입력 |
+| `signup_page_test.dart` | 회원가입 화면 기본 렌더링과 입력 |
+| `running_map_page_test.dart` | 지도 화면의 일부 상태와 위치 권한 실패 흐름 |
 | `run_result_page_test.dart` | 러닝 결과 화면 렌더링 |
 | `run_history_page_test.dart` | 러닝 기록 화면 상태 |
 | `point_history_page_test.dart` | 포인트 이력 화면 상태 |
 | `ranking_page_test.dart` | 랭킹 화면 상태 |
 | `profile_edit_page_test.dart` | 프로필 수정 화면 상태 |
 
-## 실행
+## 동작 흐름
 
-```bash
+```text
 flutter test
+-> Dart/Flutter test runner 실행
+-> run_session_engine 단위 테스트
+-> 주요 화면 widget test
+-> 결과 출력
 ```
 
 특정 테스트만 실행:
@@ -28,15 +34,15 @@ flutter test
 flutter test test/run_session_engine_test.dart
 ```
 
-## E2E 테스트
+## 관련 기능
 
-원격 Supabase API/DB까지 확인하는 테스트는 `integration_test/runner_api_e2e_test.dart`에 있다.
+- 러닝 세션 계산 검증
+- 인증 화면 렌더링 검증
+- 러닝 결과/기록/포인트/랭킹/프로필 화면 기본 상태 검증
 
-```bash
-flutter test integration_test/runner_api_e2e_test.dart \
-  --dart-define=RUNNER_E2E_EMAIL=your-test-user@example.com \
-  --dart-define=RUNNER_E2E_PASSWORD=your-password
-```
+## 참고 사항
 
-이 테스트는 실제 Supabase Auth, Edge Function, DB 테이블을 호출한다. 운영 데이터와 섞이지 않도록 전용 테스트 계정 또는 별도 Supabase 프로젝트 사용을 권장한다.
+- 지도, 위치 권한, Android/iOS 백그라운드 기능은 widget test만으로 충분히 검증하기 어렵기 때문에 실제 기기 수동 테스트가 필요합니다.
+- Supabase API와 DB 파생 데이터까지 확인하는 테스트는 `integration_test/`에 있습니다.
+- 보고서에서 서비스 계층 테스트 확대가 향후 개선 과제로 언급되어 있습니다.
 

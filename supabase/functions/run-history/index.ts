@@ -149,9 +149,7 @@ Deno.serve(async (req) => {
   }
 
   const items = (data ?? []) as RunHistoryItem[];
-  const runIds = items.map((item) => item.id).filter((id) =>
-    Number.isFinite(id)
-  );
+  const runIds = items.map((item) => item.id).filter((id) => Number.isFinite(id));
 
   let splitsByRunId = new Map<number, RunSplitItem[]>();
   if (runIds.length > 0) {
@@ -195,9 +193,7 @@ Deno.serve(async (req) => {
       offset,
       count: itemsWithSplits.length,
       total: count ?? itemsWithSplits.length,
-      has_more: count != null
-        ? offset + itemsWithSplits.length < count
-        : itemsWithSplits.length === limit,
+      has_more: count != null ? offset + itemsWithSplits.length < count : itemsWithSplits.length === limit,
     },
   });
 });

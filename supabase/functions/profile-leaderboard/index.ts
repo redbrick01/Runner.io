@@ -88,11 +88,7 @@ function getRangeBounds(rangeType: RangeType, anchor: Date): {
 } | null {
   if (rangeType === "all") return null;
 
-  const day = new Date(
-    anchor.getFullYear(),
-    anchor.getMonth(),
-    anchor.getDate(),
-  );
+  const day = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
   if (rangeType === "day") {
     const key = kstDateString(day);
     return { from: key, to: key };
@@ -171,9 +167,7 @@ Deno.serve(async (req) => {
   const requestUrl = new URL(req.url);
   const mode = (requestUrl.searchParams.get("mode") ?? "top").toLowerCase();
   const rangeType = parseRangeType(requestUrl.searchParams.get("range_type"));
-  const anchorDate = parseAnchorDate(
-    requestUrl.searchParams.get("anchor_date"),
-  );
+  const anchorDate = parseAnchorDate(requestUrl.searchParams.get("anchor_date"));
   const bounds = getRangeBounds(rangeType, anchorDate);
 
   const authHeader = req.headers.get("Authorization");
@@ -205,10 +199,7 @@ Deno.serve(async (req) => {
 
     if (profileError) {
       return json(
-        {
-          error: "Failed to fetch profiles total points",
-          details: profileError.message,
-        },
+        { error: "Failed to fetch profiles total points", details: profileError.message },
         { status: 500 },
       );
     }
@@ -221,9 +212,7 @@ Deno.serve(async (req) => {
         total_points: Number((row.total_points ?? 0).toFixed(2)),
       }))
       .sort((a, b) => {
-        if (b.total_points !== a.total_points) {
-          return b.total_points - a.total_points;
-        }
+        if (b.total_points !== a.total_points) return b.total_points - a.total_points;
         return a.user_id.localeCompare(b.user_id);
       });
   } else {
@@ -245,9 +234,7 @@ Deno.serve(async (req) => {
     }
 
     let scoreMap = aggregateScores(
-      (dailyRows ?? []) as Array<
-        { user_id: string; total_points: number | null }
-      >,
+      (dailyRows ?? []) as Array<{ user_id: string; total_points: number | null }>,
     );
 
     // daily 집계가 비어있으면 point_history에서 직접 합산 (백필 이전 대비)
@@ -263,17 +250,12 @@ Deno.serve(async (req) => {
       const { data: historyRows, error: historyError } = await historyQuery;
       if (historyError) {
         return json(
-          {
-            error: "Failed to fetch point history",
-            details: historyError.message,
-          },
+          { error: "Failed to fetch point history", details: historyError.message },
           { status: 500 },
         );
       }
       scoreMap = aggregateHistoryScores(
-        (historyRows ?? []) as Array<
-          { user_id: string; points_delta: number | null }
-        >,
+        (historyRows ?? []) as Array<{ user_id: string; points_delta: number | null }>,
       );
     }
 
@@ -307,9 +289,7 @@ Deno.serve(async (req) => {
           };
         })
         .sort((a, b) => {
-          if (b.total_points !== a.total_points) {
-            return b.total_points - a.total_points;
-          }
+          if (b.total_points !== a.total_points) return b.total_points - a.total_points;
           return a.user_id.localeCompare(b.user_id);
         });
     }
@@ -317,20 +297,13 @@ Deno.serve(async (req) => {
 
   if (scoreboard.length === 0) {
     if (mode === "context") {
-      return json({
-        mode: "context",
-        user: null,
-        above: [],
-        self: null,
-        below: [],
-      });
+      return json({ mode: "context", user: null, above: [], self: null, below: [] });
     }
     return json({ mode: "top", results: [] });
   }
 
   const rankOf = (userId: string) => {
-    const score = scoreboard.find((v) => v.user_id === userId)?.total_points ??
-      0;
+    const score = scoreboard.find((v) => v.user_id === userId)?.total_points ?? 0;
     let rank = 1;
     for (const row of scoreboard) {
       if (row.total_points > score) rank++;
@@ -360,12 +333,14 @@ Deno.serve(async (req) => {
   }
 
   const selfIndex = scoreboard.findIndex((v) => v.user_id === user.id);
-  const selfScore = selfIndex >= 0 ? scoreboard[selfIndex] : {
-    user_id: user.id,
-    nick_name: "나",
-    color_hex: "#448AFF",
-    total_points: 0,
-  };
+  const selfScore = selfIndex >= 0
+    ? scoreboard[selfIndex]
+    : {
+      user_id: user.id,
+      nick_name: "나",
+      color_hex: "#448AFF",
+      total_points: 0,
+    };
   const selfRank = rankOf(user.id);
 
   const withRank = scoreboard.map((row) => ({

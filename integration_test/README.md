@@ -1,19 +1,26 @@
-# `integration_test/` E2E 테스트
+# `integration_test/`
 
-이 폴더는 Flutter integration test 형식으로 원격 Supabase API와 DB 파생 데이터까지 확인한다.
+## 역할
 
-## 현재 테스트
+`integration_test/`는 Flutter integration test 형식으로 Supabase Auth, Edge Function, DB 파생 데이터까지 이어지는 E2E 흐름을 검증합니다. 단순 화면 렌더링을 넘어 실제 원격 Supabase API 호출 결과를 확인하는 테스트입니다.
 
-- `runner_api_e2e_test.dart`
-  - Auth 로그인 또는 고유 테스트 사용자 생성
-  - `create-run` Edge Function 호출
-  - `runs` 저장 결과 확인
-  - `run-history` 반영 확인
-  - `point-history` 반영 확인
-  - `user_point_daily.run_points`, `user_point_daily.total_points` 누적 확인
-  - `profile-leaderboard`의 현재 사용자 점수 확인
+## 주요 파일
 
-## 실행
+| 파일 | 설명 |
+|---|---|
+| `runner_api_e2e_test.dart` | 테스트 사용자 로그인/생성, `create-run` 호출, `runs`, `run-history`, `point-history`, `user_point_daily`, `profile-leaderboard` 반영 확인 |
+
+## 동작 흐름
+
+```text
+flutter test integration_test/runner_api_e2e_test.dart
+-> 테스트 사용자 로그인 또는 생성
+-> create-run Edge Function 호출
+-> DB 저장 결과 확인
+-> 기록/포인트/랭킹 API 반영 확인
+```
+
+실행 예시:
 
 ```bash
 flutter test integration_test/runner_api_e2e_test.dart \
@@ -21,5 +28,18 @@ flutter test integration_test/runner_api_e2e_test.dart \
   --dart-define=RUNNER_E2E_PASSWORD=your-password
 ```
 
-`RUNNER_E2E_EMAIL`과 `RUNNER_E2E_PASSWORD`를 생략하면 테스트가 매번 새 사용자를 만든다. 원격 프로젝트에 데이터가 남으므로 장기적으로는 테스트 전용 Supabase 프로젝트를 두는 것이 좋다.
+## 관련 기능
+
+- Supabase Auth
+- 러닝 기록 저장 API
+- 러닝 기록 조회 API
+- 포인트 이력 조회 API
+- 일별 포인트 집계
+- 기간별 랭킹 조회
+
+## 참고 사항
+
+- `RUNNER_E2E_EMAIL`과 `RUNNER_E2E_PASSWORD`를 생략하면 테스트가 새 사용자를 생성할 수 있습니다.
+- 원격 Supabase 프로젝트에 테스트 데이터가 남을 수 있으므로 운영 데이터와 분리된 테스트 계정 또는 별도 프로젝트 사용을 권장합니다.
+- 네트워크 상태와 원격 Supabase 설정에 따라 테스트 결과가 달라질 수 있습니다.
 

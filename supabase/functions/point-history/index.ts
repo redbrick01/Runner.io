@@ -77,11 +77,7 @@ function getRangeBounds(rangeType: RangeType, anchor: Date): {
 } | null {
   if (rangeType === "all") return null;
 
-  const day = new Date(
-    anchor.getFullYear(),
-    anchor.getMonth(),
-    anchor.getDate(),
-  );
+  const day = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
 
   if (rangeType === "day") {
     const from = kstDateString(day);
@@ -143,9 +139,7 @@ Deno.serve(async (req) => {
 
   const requestUrl = new URL(req.url);
   const rangeType = parseRangeType(requestUrl.searchParams.get("range_type"));
-  const anchorDate = parseAnchorDate(
-    requestUrl.searchParams.get("anchor_date"),
-  );
+  const anchorDate = parseAnchorDate(requestUrl.searchParams.get("anchor_date"));
   const bounds = getRangeBounds(rangeType, anchorDate);
 
   const limitParam = Number.parseInt(
@@ -159,7 +153,9 @@ Deno.serve(async (req) => {
   const limit = Number.isFinite(limitParam)
     ? Math.min(Math.max(limitParam, 1), 2000)
     : 100;
-  const offset = Number.isFinite(offsetParam) ? Math.max(offsetParam, 0) : 0;
+  const offset = Number.isFinite(offsetParam)
+    ? Math.max(offsetParam, 0)
+    : 0;
 
   const authHeader = req.headers.get("Authorization");
   const authClient = createClient(supabaseUrl, anonKey, {
