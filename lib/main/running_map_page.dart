@@ -568,12 +568,25 @@ class _RunningMapPageState extends State<RunningMapPage>
     _lastAnnouncedSplitElapsedSeconds = elapsedNow;
 
     try {
-      if (Platform.isAndroid && !_isAppInForeground) {
-        await _liveActivityChannel.invokeMethod<void>(
-          'announceSplitInBackground',
-          speech,
-        );
-        return;
+      if (!_isAppInForeground) {
+        if (Platform.isAndroid) {
+          await _liveActivityChannel.invokeMethod<void>(
+            'announceSplitInBackground',
+            speech,
+          );
+          return;
+        }
+        if (Platform.isIOS) {
+          await _liveActivityChannel.invokeMethod<void>(
+            'announceSplitInBackground',
+            {
+              'speech': speech,
+              'completedKm': completedKm,
+              'elapsedSeconds': elapsedNow,
+            },
+          );
+          return;
+        }
       }
       await _configureSplitTts();
       await _playSplitChime();

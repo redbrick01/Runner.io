@@ -73,6 +73,8 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
             result(nil)
         case "playSplitChime":
             playSplitChime(result: result)
+        case "announceSplitInBackground":
+            announceSplitInBackground(call: call, result: result)
         case "beginCountdownBackgroundTask":
             beginCountdownBackgroundTask(result: result)
         case "endCountdownBackgroundTask":
@@ -84,6 +86,35 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
 
     private func playSplitChime(result: @escaping FlutterResult) {
         playSynthChime()
+        result(nil)
+    }
+
+    private func announceSplitInBackground(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        let speech: String
+        var completedKm: Int?
+        var elapsedSeconds: Int?
+
+        if let args = call.arguments as? [String: Any] {
+            speech = (args["speech"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            completedKm = (args["completedKm"] as? NSNumber)?.intValue ?? args["completedKm"] as? Int
+            elapsedSeconds = (args["elapsedSeconds"] as? NSNumber)?.intValue ?? args["elapsedSeconds"] as? Int
+        } else {
+            speech = (call.arguments as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }
+
+        guard !speech.isEmpty else {
+            result(nil)
+            return
+        }
+
+        if let completedKm {
+            lastAnnouncedSplitKm = max(lastAnnouncedSplitKm, completedKm)
+        }
+        if let elapsedSeconds {
+            lastAnnouncedSplitElapsedSeconds = max(lastAnnouncedSplitElapsedSeconds, elapsedSeconds)
+        }
+
+        speakSplitAnnouncement(speech)
         result(nil)
     }
 
@@ -411,6 +442,10 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
 
         let splitText = formatSplitPaceKorean(splitDuration)
         let speech = "\(completedKm)킬로미터, 구간 페이스 \(splitText)"
+        speakSplitAnnouncement(speech)
+    }
+
+    private func speakSplitAnnouncement(_ speech: String) {
         playSplitChime(result: { _ in })
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
             guard let self else { return }
