@@ -715,9 +715,50 @@ flutter test integration_test/runner_api_e2e_test.dart \
   --dart-define=RUNNER_E2E_PASSWORD=CodexTest!20260524000103
 ```
 
-## 14. 결론
+## 14. 최신 지도/기기 검증 반영
+
+### 14.1 지도 overlay 정리
+
+변경 내용:
+
+- 현재 위치 마커를 작은 dot 형태로 축소해 지도와 영토를 가리지 않도록 조정
+- 영토 닉네임 라벨은 현재 사용자 영토 대표 1개에만 표시
+- 상대 영토는 색상 polygon만 표시하고 닉네임 marker는 생성하지 않음
+- 영토/프로필 `color_hex` 값이 잘못되어도 기본 색상으로 대체
+- 로그인 직후 프로필 조회, 위치 초기화, 위치 stream 오류가 앱 종료로 번지지 않도록 방어 처리
+
+검증:
+
+```bash
+flutter analyze lib/main/running_map_page.dart
+flutter test test/running_map_page_test.dart
+flutter test
+```
+
+결과:
+
+```text
+No issues found
+All tests passed! 29 tests
+```
+
+### 14.2 iOS 실제 기기 실행
+
+변경 내용:
+
+- `ios/Flutter/Debug.xcconfig`, `ios/Flutter/Release.xcconfig`에서 `Local.xcconfig`를 선택적으로 include
+- `ios/Flutter/Local.xcconfig`를 Git 제외 대상으로 추가
+- iOS Google Maps key는 `GOOGLE_MAPS_API_KEY` build setting으로 주입
+
+검증 내용:
+
+- iPhone 실제 기기에서 `flutter run -d 00008150-001225DC1186401C` 실행
+- Supabase 초기화 성공 확인
+- 지도 화면 진입 후 `user-ranking`, `territory-geojson`, `profile-leaderboard` API 응답 확인
+- Google Maps API key 미설정으로 인한 `GMSServicesException` 재발 없음
+
+## 15. 결론
 
 현재 프로젝트는 핵심 러닝 로직, 서버 저장 흐름, DB 파생 데이터, 주요 Flutter 프론트 화면의 기본 안정성 테스트까지 통과했다.
 
 현재 가장 큰 남은 리스크는 `RunningMapPage`의 실제 러닝 UI 상태 전환과 native 의존 기능이다. 이 영역은 실제 앱 핵심 경험에 해당하므로 다음 테스트 단계에서 가장 높은 우선순위로 다뤄야 한다.
-

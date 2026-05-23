@@ -58,7 +58,6 @@ class _RunningMapPageState extends State<RunningMapPage>
   double _currentZoom = 16;
   double _currentBearing = 0;
   LatLng? _currentCameraTarget;
-  static const double _nicknameVisibilityZoomThreshold = 14;
   static const double _runningFollowZoom = 18;
   static const double _manualLocateZoom = 18;
   static const double _compassResetThreshold = 1;
@@ -384,7 +383,6 @@ class _RunningMapPageState extends State<RunningMapPage>
   final Set<Polyline> _polylines = {};
   final Set<Polygon> _territoryPolygons = {};
   final Set<Marker> _territoryMarkers = {};
-  final Set<String> _ownTerritoryMarkerIds = {};
   final Map<String, LatLngBounds> _territoryMarkerBounds = {};
   final Map<String, BitmapDescriptor> _nicknameCache = {};
   BitmapDescriptor? _currentLocationIcon;
@@ -443,7 +441,7 @@ class _RunningMapPageState extends State<RunningMapPage>
     );
     WidgetsBinding.instance.addObserver(this);
     unawaited(_updateCurrentLocationIcon());
-    _fetchUserRanking();
+    unawaited(_fetchUserRanking());
     _startTerritoryUpdates();
     unawaited(_initializeLocationTracking());
     unawaited(() async {
@@ -629,15 +627,24 @@ class _RunningMapPageState extends State<RunningMapPage>
     bool restartTracking = false,
     bool forceTerritoryRefresh = false,
   }) async {
-    await _determinePosition();
-    if (!mounted) {
-      return;
-    }
-    if (restartTracking || _positionStream == null) {
-      _startLocationTracking(enableBackgroundUpdates: false);
-    }
-    if (_currentPosition != null) {
-      unawaited(_fetchTerritories(force: forceTerritoryRefresh));
+    try {
+      await _determinePosition();
+      if (!mounted) {
+        return;
+      }
+      if (restartTracking || _positionStream == null) {
+        _startLocationTracking(enableBackgroundUpdates: false);
+      }
+      if (_currentPosition != null) {
+        unawaited(_fetchTerritories(force: forceTerritoryRefresh));
+      }
+    } catch (e) {
+      debugPrint('위치 추적 초기화 실패: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -732,9 +739,7 @@ class _RunningMapPageState extends State<RunningMapPage>
             Polyline(
               polylineId: const PolylineId('running_route'),
               points: List.from(_routePoints),
-              color: Color(
-                int.parse(_userColorHex.replaceFirst('#', '0xFF')),
-              ).withValues(alpha: 0.5),
+              color: _colorFromHex(_userColorHex).withValues(alpha: 0.5),
               width: 8,
               jointType: JointType.round,
               startCap: Cap.roundCap,
@@ -925,30 +930,34 @@ class _RunningMapPageState extends State<RunningMapPage>
 
     final future = () async {
       _lastUserRankingFetchTime = now;
-      final snapshot = await RunningMapService.instance.fetchUserProfile(
-        force: true,
-      );
-      if (!mounted || snapshot == null) {
-        return;
-      }
-
-      final String? newColor = snapshot.colorHex;
-      setState(() {
-        _currentUserId = snapshot.userId;
-        _points = snapshot.totalPoints;
-        _occupiedArea = snapshot.area / 1000000;
-        _weightKg = snapshot.weightKg;
-        _ranking = snapshot.rank;
-        if (newColor != null && newColor.isNotEmpty) {
-          _userColorHex = newColor;
+      try {
+        final snapshot = await RunningMapService.instance.fetchUserProfile(
+          force: true,
+        );
+        if (!mounted || snapshot == null) {
+          return;
         }
-      });
 
-      if (newColor != null && newColor.isNotEmpty) {
-        await _updateCurrentLocationIcon();
-        if (mounted) {
-          _updatePolylines();
+        final String? newColor = snapshot.colorHex;
+        setState(() {
+          _currentUserId = snapshot.userId;
+          _points = snapshot.totalPoints;
+          _occupiedArea = snapshot.area / 1000000;
+          _weightKg = snapshot.weightKg;
+          _ranking = snapshot.rank;
+          if (_isValidColorHex(newColor)) {
+            _userColorHex = newColor!;
+          }
+        });
+
+        if (_isValidColorHex(newColor)) {
+          await _updateCurrentLocationIcon();
+          if (mounted) {
+            _updatePolylines();
+          }
         }
+      } catch (e) {
+        debugPrint('유저 랭킹 정보 로드 실패: $e');
       }
     }();
 
@@ -961,7 +970,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Future<void> _updateCurrentLocationIcon() async {
-    final color = Color(int.parse(_userColorHex.replaceFirst('#', '0xFF')));
+    final color = _colorFromHex(_userColorHex);
     final icon = await _createDotIcon(color);
     if (mounted) {
       setState(() {
@@ -971,17 +980,20 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Future<BitmapDescriptor> _createDotIcon(Color color) async {
-    const double size = 60.0;
+    const double size = 36.0;
     final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
     final Canvas canvas = Canvas(pictureRecorder);
 
-    // 외곽 흰색 테두리
+    // Small, high-contrast dot that stays visible without covering the map.
     final Paint whitePaint = Paint()..color = Colors.white;
     canvas.drawCircle(const Offset(size / 2, size / 2), size / 2, whitePaint);
 
-    // 유저 색상 원
     final Paint colorPaint = Paint()..color = color;
-    canvas.drawCircle(const Offset(size / 2, size / 2), size / 2.5, colorPaint);
+    canvas.drawCircle(
+      const Offset(size / 2, size / 2),
+      size * 0.36,
+      colorPaint,
+    );
 
     final img = await pictureRecorder.endRecording().toImage(
       size.toInt(),
@@ -989,6 +1001,18 @@ class _RunningMapPageState extends State<RunningMapPage>
     );
     final data = await img.toByteData(format: ui.ImageByteFormat.png);
     return BitmapDescriptor.bytes(data!.buffer.asUint8List());
+  }
+
+  bool _isValidColorHex(String? value) {
+    if (value == null) return false;
+    final normalized = value.trim().replaceFirst('#', '');
+    return RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(normalized);
+  }
+
+  Color _colorFromHex(String? value, {Color fallback = AppColors.primary}) {
+    if (!_isValidColorHex(value)) return fallback;
+    final normalized = value!.trim().replaceFirst('#', '');
+    return Color(int.parse('0xFF$normalized'));
   }
 
   Future<void> _fetchTerritories({bool force = false}) async {
@@ -1023,7 +1047,8 @@ class _RunningMapPageState extends State<RunningMapPage>
     String nickname,
     Color color,
   ) async {
-    final String cacheKey = "${nickname}_${color.toARGB32()}";
+    final label = _shortenTerritoryLabel(nickname);
+    final String cacheKey = "${label}_${color.toARGB32()}";
     if (_nicknameCache.containsKey(cacheKey)) return _nicknameCache[cacheKey]!;
 
     final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
@@ -1031,16 +1056,16 @@ class _RunningMapPageState extends State<RunningMapPage>
 
     final TextPainter painter = TextPainter(textDirection: TextDirection.ltr);
     painter.text = TextSpan(
-      text: nickname,
+      text: label,
       style: TextStyle(
-        fontSize: 40.0,
+        fontSize: 22.0,
         fontWeight: FontWeight.bold,
         color: color,
         shadows: const [
           Shadow(
-            offset: Offset(2.0, 2.0),
-            blurRadius: 3.0,
-            color: Colors.black54,
+            offset: Offset(1.0, 1.0),
+            blurRadius: 2.0,
+            color: Colors.black38,
           ),
         ],
       ),
@@ -1058,6 +1083,12 @@ class _RunningMapPageState extends State<RunningMapPage>
 
     _nicknameCache[cacheKey] = icon;
     return icon;
+  }
+
+  String _shortenTerritoryLabel(String nickname) {
+    final trimmed = nickname.trim();
+    if (trimmed.length <= 8) return trimmed;
+    return '${trimmed.substring(0, 7)}...';
   }
 
   bool _isPointInPolygon(LatLng point, List<LatLng> polygon) {
@@ -1175,6 +1206,46 @@ class _RunningMapPageState extends State<RunningMapPage>
     );
   }
 
+  double _getPolygonAreaScore(List<LatLng> points) {
+    if (points.length < 3) return 0;
+
+    double area = 0;
+    for (var i = 0; i < points.length; i++) {
+      final current = points[i];
+      final next = points[(i + 1) % points.length];
+      area +=
+          current.longitude * next.latitude - next.longitude * current.latitude;
+    }
+
+    return area.abs() / 2;
+  }
+
+  void _collectLabelCandidate({
+    required Map<String, _TerritoryLabelCandidate> candidates,
+    required String userId,
+    required String markerIdValue,
+    required String nickname,
+    required Color color,
+    required LatLng center,
+    required LatLngBounds bounds,
+    required double areaScore,
+  }) {
+    final existing = candidates[userId];
+    final candidate = _TerritoryLabelCandidate(
+      userId: userId,
+      markerIdValue: markerIdValue,
+      nickname: nickname,
+      color: color,
+      center: center,
+      bounds: bounds,
+      areaScore: areaScore,
+    );
+
+    if (existing == null || candidate.areaScore > existing.areaScore) {
+      candidates[userId] = candidate;
+    }
+  }
+
   Future<void> _focusTerritoryBounds(LatLngBounds bounds) async {
     if (mapController == null) return;
 
@@ -1201,20 +1272,23 @@ class _RunningMapPageState extends State<RunningMapPage>
     final List features = geojson['features'] ?? [];
     final Set<Polygon> newPolygons = {};
     final Set<Marker> newMarkers = {};
-    final Set<String> ownMarkerIds = {};
     final Map<String, LatLngBounds> markerBounds = {};
+    final Map<String, _TerritoryLabelCandidate> labelCandidates = {};
     final String? currentUserId = _currentUserId;
 
     for (int fIdx = 0; fIdx < features.length; fIdx++) {
       final feature = features[fIdx];
       final properties = feature['properties'];
       final geometry = feature['geometry'];
+      if (properties is! Map || geometry is! Map) {
+        continue;
+      }
       final String userId =
           properties['user_id']?.toString() ?? "unknown_$fIdx";
-      final String nickname = properties['nick_name'] ?? '익명';
-      final String colorHex = properties['color_hex'] ?? "#448AFF";
+      final String nickname = properties['nick_name']?.toString() ?? '익명';
+      final String colorHex = properties['color_hex']?.toString() ?? "#448AFF";
 
-      Color baseColor = Color(int.parse(colorHex.replaceFirst('#', '0xFF')));
+      Color baseColor = _colorFromHex(colorHex);
       Color fillColor = baseColor.withValues(alpha: 0.3);
       Color strokeColor = baseColor.withValues(alpha: 0.8);
 
@@ -1238,20 +1312,18 @@ class _RunningMapPageState extends State<RunningMapPage>
         final center = _getPolygonCenter(points);
         final bounds = _getPolygonBounds(points);
         final markerIdValue = "label_$polyId";
-        final icon = await _createNicknameIcon(nickname, baseColor);
-        newMarkers.add(
-          Marker(
-            markerId: MarkerId(markerIdValue),
-            position: center,
-            icon: icon,
-            anchor: const Offset(0.5, 0.5),
-            consumeTapEvents: true,
-            onTap: () => _focusTerritoryBounds(bounds),
-          ),
-        );
-        markerBounds[markerIdValue] = bounds;
-        if (currentUserId != null && currentUserId == userId) {
-          ownMarkerIds.add(markerIdValue);
+        final isOwnTerritory = currentUserId != null && currentUserId == userId;
+        if (isOwnTerritory) {
+          _collectLabelCandidate(
+            candidates: labelCandidates,
+            userId: userId,
+            markerIdValue: markerIdValue,
+            nickname: nickname,
+            color: baseColor,
+            center: center,
+            bounds: bounds,
+            areaScore: _getPolygonAreaScore(points),
+          );
         }
       } else if (geometry['type'] == 'MultiPolygon') {
         List multiCoords = geometry['coordinates'];
@@ -1275,23 +1347,41 @@ class _RunningMapPageState extends State<RunningMapPage>
           final center = _getPolygonCenter(points);
           final bounds = _getPolygonBounds(points);
           final markerIdValue = "label_$polyId";
-          final icon = await _createNicknameIcon(nickname, baseColor);
-          newMarkers.add(
-            Marker(
-              markerId: MarkerId(markerIdValue),
-              position: center,
-              icon: icon,
-              anchor: const Offset(0.5, 0.5),
-              consumeTapEvents: true,
-              onTap: () => _focusTerritoryBounds(bounds),
-            ),
-          );
-          markerBounds[markerIdValue] = bounds;
-          if (currentUserId != null && currentUserId == userId) {
-            ownMarkerIds.add(markerIdValue);
+          final isOwnTerritory =
+              currentUserId != null && currentUserId == userId;
+          if (isOwnTerritory) {
+            _collectLabelCandidate(
+              candidates: labelCandidates,
+              userId: userId,
+              markerIdValue: markerIdValue,
+              nickname: nickname,
+              color: baseColor,
+              center: center,
+              bounds: bounds,
+              areaScore: _getPolygonAreaScore(points),
+            );
           }
         }
       }
+    }
+
+    for (final candidate in labelCandidates.values) {
+      final icon = await _createNicknameIcon(
+        candidate.nickname,
+        candidate.color,
+      );
+      final markerIdValue = candidate.markerIdValue;
+      newMarkers.add(
+        Marker(
+          markerId: MarkerId(markerIdValue),
+          position: candidate.center,
+          icon: icon,
+          anchor: const Offset(0.5, 0.5),
+          consumeTapEvents: true,
+          onTap: () => _focusTerritoryBounds(candidate.bounds),
+        ),
+      );
+      markerBounds[markerIdValue] = candidate.bounds;
     }
 
     if (mounted) {
@@ -1300,9 +1390,6 @@ class _RunningMapPageState extends State<RunningMapPage>
         _territoryPolygons.addAll(newPolygons);
         _territoryMarkers.clear();
         _territoryMarkers.addAll(newMarkers);
-        _ownTerritoryMarkerIds
-          ..clear()
-          ..addAll(ownMarkerIds);
         _territoryMarkerBounds
           ..clear()
           ..addAll(markerBounds);
@@ -1473,6 +1560,9 @@ class _RunningMapPageState extends State<RunningMapPage>
               _followCurrentLocationIfRunning();
             }
           },
+          onError: (Object error) {
+            debugPrint('위치 스트림 오류: $error');
+          },
         );
   }
 
@@ -1485,7 +1575,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Set<Polyline> _buildRoutePolylines() {
-    final userColor = Color(int.parse(_userColorHex.replaceFirst('#', '0xFF')));
+    final userColor = _colorFromHex(_userColorHex);
     final pathColor = userColor.withValues(alpha: 0.5);
     final polylines = <Polyline>{};
 
@@ -2633,9 +2723,7 @@ class _RunningMapPageState extends State<RunningMapPage>
 
   @override
   Widget build(BuildContext context) {
-    final Color userColor = Color(
-      int.parse(_userColorHex.replaceFirst('#', '0xFF')),
-    );
+    final Color userColor = _colorFromHex(_userColorHex);
 
     return Scaffold(
       body: _isLoading
@@ -2677,18 +2765,12 @@ class _RunningMapPageState extends State<RunningMapPage>
                     }
                   },
                   onCameraMove: (position) {
-                    final previousShowsNicknames =
-                        _currentZoom >= _nicknameVisibilityZoomThreshold;
-                    final nextShowsNicknames =
-                        position.zoom >= _nicknameVisibilityZoomThreshold;
                     final shouldRefreshBearing =
                         (_currentBearing - position.bearing).abs() >= 1;
                     _currentZoom = position.zoom;
                     _currentBearing = position.bearing;
                     _currentCameraTarget = position.target;
-                    if ((previousShowsNicknames != nextShowsNicknames ||
-                            shouldRefreshBearing) &&
-                        mounted) {
+                    if (shouldRefreshBearing && mounted) {
                       setState(() {});
                     }
                   },
@@ -2711,28 +2793,18 @@ class _RunningMapPageState extends State<RunningMapPage>
                   buildingsEnabled: false,
                   polylines: _polylines,
                   polygons: _territoryPolygons,
-                  markers: _territoryMarkers
-                      .where((marker) {
-                        if (_currentZoom >= _nicknameVisibilityZoomThreshold) {
-                          return true;
-                        }
-                        return _ownTerritoryMarkerIds.contains(
-                          marker.markerId.value,
-                        );
-                      })
-                      .toSet()
-                      .union({
-                        if (_currentPosition != null)
-                          Marker(
-                            markerId: const MarkerId('current_location'),
-                            position: _currentPosition!,
-                            icon:
-                                _currentLocationIcon ??
-                                BitmapDescriptor.defaultMarker,
-                            anchor: const Offset(0.5, 0.5),
-                            zIndexInt: 10,
-                          ),
-                      }),
+                  markers: _territoryMarkers.toSet().union({
+                    if (_currentPosition != null)
+                      Marker(
+                        markerId: const MarkerId('current_location'),
+                        position: _currentPosition!,
+                        icon:
+                            _currentLocationIcon ??
+                            BitmapDescriptor.defaultMarker,
+                        anchor: const Offset(0.5, 0.5),
+                        zIndexInt: 10,
+                      ),
+                  }),
                   circles: {
                     if (_currentPosition != null)
                       Circle(
@@ -2754,4 +2826,24 @@ class _RunningMapPageState extends State<RunningMapPage>
             ),
     );
   }
+}
+
+class _TerritoryLabelCandidate {
+  const _TerritoryLabelCandidate({
+    required this.userId,
+    required this.markerIdValue,
+    required this.nickname,
+    required this.color,
+    required this.center,
+    required this.bounds,
+    required this.areaScore,
+  });
+
+  final String userId;
+  final String markerIdValue;
+  final String nickname;
+  final Color color;
+  final LatLng center;
+  final LatLngBounds bounds;
+  final double areaScore;
 }

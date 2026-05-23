@@ -60,5 +60,6 @@ ios/Pods/
 macos/Pods/
 ios/.symlinks/
 macos/.symlinks/
+ios/Flutter/Local.xcconfig
 **/xcuserdata/
 **/UserInterfaceState.xcuserstate

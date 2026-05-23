@@ -41,8 +41,19 @@ Flutter RunningMapPage
 flutter run -d ios
 ```
 
+## 로컬 설정
+
+iOS Google Maps API key는 Git에 커밋하지 않는 로컬 파일에 둔다.
+
+```xcconfig
+// ios/Flutter/Local.xcconfig
+GOOGLE_MAPS_API_KEY = your-ios-restricted-key
+```
+
+`Debug.xcconfig`와 `Release.xcconfig`는 `Local.xcconfig`를 선택적으로 include한다. 이 파일이 없으면 `Info.plist`의 `$(GOOGLE_MAPS_API_KEY)` placeholder가 치환되지 않아, 지도 화면 진입 시 Google Maps SDK 초기화 예외가 발생할 수 있다.
+
 ## 참고 사항
 
 - Live Activity와 HealthKit은 시뮬레이터보다 실제 기기에서 검증하는 것이 안전합니다.
-- `Info.plist`에는 `$(GOOGLE_MAPS_API_KEY)` placeholder를 사용하며 실제 키는 Xcode build setting 또는 Git에 올리지 않는 로컬 xcconfig에 둡니다.
+- `Info.plist`에는 `$(GOOGLE_MAPS_API_KEY)` placeholder를 사용하며 실제 키는 Xcode build setting 또는 `ios/Flutter/Local.xcconfig`에 둡니다.
 - `Pods/`, `.symlinks/`, `Flutter/ephemeral/`, `xcuserdata/`, `UserInterfaceState.xcuserstate`는 Git 관리 대상이 아닙니다.
