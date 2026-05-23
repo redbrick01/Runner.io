@@ -1,0 +1,379 @@
+Midterm Report (English Translation)
+
+Project Title: Runner Flutter-Based Gamified Running Service
+Date: April 13, 2026
+Document Type: Graduation Project Midterm Report
+
+
+1. Project Overview
+
+This project aims to develop a running application that helps users enjoy running more and maintain exercise as a long-term habit rather than a one-time activity. The system is implemented as a mobile app and uses GPS-based location processing and map visualization to reflect user movement routes in real time. Based on this, an area-capture mechanism is applied to enable competition and interaction among users, providing a differentiated running experience compared with conventional record-only services.
+
+Background
+
+As public interest in health has increased, the number of runners has rapidly grown, forming what is often called a “running boom.” Especially after COVID-19, individual exercise culture expanded, and running became a representative everyday sport because it can be done without strong constraints on place and time. Many running applications now provide distance, duration, and pace records; however, most still focus on simple measurement and statistics. In these apps, users mainly receive record information, which is often insufficient for long-term motivation. Users may initially feel satisfied checking their records, but repetitive usage often leads to reduced engagement and eventual churn.
+
+Project Goal
+
+This project combines game elements with conventional running tracking so that users can have a more active and immersive running experience. In particular, GPS route data is visualized in real time, and area capture plus competitive elements are introduced so running can be experienced more like a game. The final objective is to increase user participation and support sustainable long-term exercise habits.
+
+
+2. Implementation Status and Development Goals
+
+This project expands running from a simple record-tracking activity into a service that provides continuous motivation and immersion. To achieve this, we aim to build an integrated system that includes location-data processing, user interface design, client-server integration, and activity analysis features.
+
+In the earlier demo version, feedback indicated that game elements were emphasized while core running-record features were relatively weak. Therefore, in this phase, we improved the design direction to strengthen practical running-record and analysis capabilities while preserving game mechanics.
+
+2.1 Final Goals
+
+The final goals of this project are as follows:
+
+- Implement a real-time location-based running recording system.
+User GPS data is collected in real time and visualized on the map to provide intuitive running records. Key metrics such as distance, duration, speed, and pace are also provided.
+
+- Design and implement area-capture gamification.
+User running routes are used to capture specific map areas and add game-like motivation. This feature is a core element that accumulates movement outcomes as visible achievements.
+
+- Build an integrated user interface.
+Functions such as points, rankings, and activity analytics are connected in one flow to improve user experience, allowing users to review outcomes intuitively and gain additional motivation through comparison.
+
+- Secure deployable-level stability and completeness.
+The goal is to complete an application that can run in real user environments, with minimized critical errors, stable data processing, and improved UI/UX quality.
+
+2.2 Midterm-Stage Goals
+
+At the midterm stage, the objective is to complete the system foundation:
+
+- Refactor demo code and improve UI structure.
+- Implement core mobile UI using Flutter.
+- Implement user authentication via Supabase Auth.
+- Integrate Supabase database and Edge Function APIs.
+- Build core screens: running, result, history, points, ranking, my page, and territory detail.
+- Implement running session state management and real-time data updates.
+
+2.3 Next Development Goals
+
+After the midterm stage, we plan to:
+
+- Integrate an AI chatbot API for running-data analysis and personalized feedback.
+- Deploy a final demo and collect user feedback.
+- Improve system stability and overall completeness through error handling and UX refinement.
+
+Through this phased roadmap, the project aims to evolve beyond a simple tracking app into a comprehensive running service that integrates records, motivation, and analytics.
+
+
+3. Technology Stack
+
+3.1 Application (Frontend) Technologies
+
+- Flutter: Cross-platform framework for Android/iOS; used for efficient UI implementation.
+- Dart: Primary language used for app logic, state handling, and server communication.
+- google_maps_flutter: Used for map UI and visualization of location, routes, and captured areas.
+- geolocator: Core package for GPS location collection, distance, and speed calculations.
+- flutter_tts: Used for voice guidance during running.
+- flutter_foreground_task: Keeps location tracking active while the app is in the background.
+- http: Used for network calls to Supabase Edge Functions.
+
+3.2 Server/Data (Backend) Technologies
+
+- Supabase Auth: Handles sign-up, login, and session management.
+- Supabase PostgreSQL: Stores running records, points, user profiles, and territory data.
+- PostGIS: Spatial extension for PostgreSQL used for coordinate and area operations.
+- Supabase Edge Function: Processes backend business logic such as point calculation and ranking.
+
+Why this stack
+
+We selected Flutter + Supabase mainly for development productivity and integration speed. Within a limited academic schedule, we needed to build frontend and backend in parallel. Supabase offered authentication, database, and API capabilities in a unified environment, significantly improving development efficiency.
+
+Also, Supabase’s PostgreSQL + PostGIS support fits this project’s GPS/spatial requirements, including route storage and territory calculations. Flutter additionally provides single-codebase cross-platform support and faster UI iteration, which is beneficial for future scalability.
+
+
+4. Current Implementation Status
+
+4.1 Authentication and Account
+
+- Email/password sign-up and login implemented.
+- Navigate to main running screen after successful login.
+- On logout, session is removed and user is returned to login.
+- App startup checks session and automatically selects entry screen.
+
+4.2 Running Recording
+
+The core running logic is centered around `RunSessionEngine`, which manages:
+
+- Start / pause / resume / stop states
+- Elapsed time (including paused-time compensation)
+- Cumulative distance, current speed, and ascent
+- Route point accumulation
+
+To reduce GPS noise, we applied:
+
+- Maximum accepted accuracy filtering
+- Minimum movement threshold filtering
+- Abnormal derived-speed filtering
+- Warm-up sample handling at run start
+
+4.3 Map and Territory Features
+
+In `RunningMapPage`, the following are implemented:
+
+- Current location display
+- Real-time route polyline rendering
+- Territory polygon rendering
+- Territory center markers and brief info
+
+To improve map usability, automatic camera follow and manual map interaction are handled with separate state flags to avoid conflicts.
+
+4.4 Result Report Feature
+
+After run completion, `RunResultPage` provides:
+
+- Distance / duration / average pace
+- Points / calories / ascent / captured area
+- Map-based route visualization
+- Split-level detailed data
+
+Calories are estimated using MET-based logic when weight data is available, with optional server-side fallback calculation.
+
+4.5 History and Analysis Features
+
+- `RunHistoryPage`: Period-based running history and detail navigation
+- `PointHistoryPage`: Event-type point delta tracking
+- `RankingPage`: Period-based ranking with self-context display
+- `TerritoryDetailPage`: Area, maintenance rate, and top contributing runs
+
+Point records are linked to running reports so users can see which activity generated specific point changes.
+
+4.6 Background Features
+
+Android implementation (foreground service-based):
+
+- Run control from lock screen/notification (pause/resume/stop)
+- Background location tracking
+- Split voice guidance (TTS)
+
+This supports practical usage when the app is not always in the foreground.
+
+iOS implementation (Live Activity-based):
+
+- Real-time run status on lock screen and notification area
+- Dynamic Island visualization of run progress
+- Ability to check current run status without opening the app
+
+
+5. Data/API Summary
+
+5.1 Main Tables
+
+- `profiles`: user identity, nickname, total points, color, body metrics
+- `runs`: run-level record data (time, distance, point, pace, etc.)
+- `run_splits`: split-level analysis data
+- `point_history`: point event logs
+- `territories`: per-user territory information
+
+5.2 One-Line Edge Function Descriptions
+
+- `create-run`: Stores completed run records and split data.
+- `run-history`: Retrieves run history and split details for the logged-in user.
+- `point-history`: Retrieves point-delta history by time range.
+- `profile-leaderboard`: Aggregates points by period and returns ranking.
+- `update_profile`: Updates nickname, color, body info, and password.
+
+5.3 Function Flow
+
+After a run ends, the client calls `create-run` to save results. Then users can verify outputs through `run-history` and `point-history`. Ranking updates are reflected through `profile-leaderboard`. Profile changes are saved via `update_profile` and reflected in local app state.
+
+
+6. Midterm Review Results
+
+6.1 Achievements
+
+- Core user flow implemented (login → run → save → review)
+- Route/territory map visualization integrated with result report
+- Ranking, points, and territory analysis screens connected
+- Service-layer separation around backend functions established
+
+6.2 Issues Identified
+
+- Automated tests are insufficient for reliable regression checks
+- Some screens feel slower under unstable network conditions
+- Period-navigation rules are not fully unified across all screens
+- Naming consistency cleanup is still needed in some functions/files
+
+6.3 Root Cause Analysis
+
+- Most development resources were prioritized for feature integration first
+- Period logic evolved incrementally by screen, delaying standardization
+- API/function naming conventions remain partially mixed from early stages
+
+6.4 Current Responses
+
+- Test-priority list for service/session engine completed
+- Work started to centralize period utility logic
+- Initial naming-convention guide drafted
+
+
+7. Improvement Plan
+
+7.1 Short-Term (1–2 weeks)
+
+- Standardize API naming and response schemas
+- Add service-layer unit tests
+- Improve error messages and retry UX
+- Unify period-filter behavior across screens
+
+7.2 Mid-Term (3–4 weeks)
+
+- Tune GPS accuracy in dense urban/tunnel cases
+- Measure and optimize battery usage
+- Validate period-based aggregation accuracy
+- Improve geometry parsing robustness
+
+7.3 Presentation Preparation
+
+- Finalize demo scenario (login → run → result → analysis)
+- Prepare architecture/flow/screen materials
+- Finalize report language, tables, and checklists
+
+
+8. Expected Effects
+
+8.1 Learning Outcomes
+
+- Integrated experience in mobile UI, location-data processing, and backend API integration
+- Practical experience solving problems in full user-flow units
+- Improved code-structuring experience (service separation, state handling)
+
+8.2 Service Value
+
+- Foundation for a gamified structure that supports exercise continuity
+- Connected feedback loop across records, points, rankings, and territory
+- Expandable to challenges, social comparison, and local event features
+
+8.3 User-Experience Value
+
+- Visual achievement beyond simple record checking
+- Immediate post-run reports improving satisfaction
+- Period-based history and ranking for self-review and motivation
+
+
+9. Conclusion
+
+At the midterm stage, most core features are implemented and integrated at a level suitable for live demonstration. The biggest achievement is the connected experience across running session, map visualization, result reporting, and points/ranking/territory analytics.
+
+For the remaining period, priority should be placed on accuracy, stability, and testing rather than major new features. With these improvements, the project is expected to present a robust and explainable final result.
+
+
+10. Detailed Progress by Screen
+
+10.1 Main Running Screen
+
+Implemented:
+
+- Current location display on map
+- Real-time route drawing during runs
+- Top summary indicators (ranking/points)
+- State-aware control buttons (start/pause/resume/stop)
+- Periodic data refresh (territory/user summary)
+
+Rendering order and color readability were also adjusted for overlapping territory polygons.
+
+10.2 Run Result Screen
+
+Designed to explain “how meaningful today’s run was,” not just show numbers.
+
+- Core metrics: distance, time, average pace
+- Extended metrics: points, calories, ascent, captured area
+- Full-route map visualization
+- Split-based pace/distance analysis
+
+10.3 Run History Screen
+
+- Period filters: day/week/month/year/all
+- List summary: time, distance, pace, points
+- Tap-to-open detailed report for each record
+
+The long-term direction is to add trend-focused indicators (period averages and deltas).
+
+10.4 Point History Screen
+
+- Event-type grouped display (run complete, territory maintenance, etc.)
+- Period-based filtering
+- Point records linked to corresponding run reports
+
+This structure was designed so users can understand which actions generated point changes.
+
+10.5 Ranking Screen
+
+- Period-based ranking (day/week/month/year/all)
+- Emphasis on self ranking
+- Context-first display around the user
+
+Compared with a pure TOP list, self-context display is expected to improve sustained motivation.
+
+10.6 My Page / Profile Edit Screen
+
+- Displays nickname, rank, cumulative points, and captured area
+- Provides quick navigation to sub-features
+- Supports editing nickname, color, height/weight, and password
+- Updates local state immediately after profile changes
+
+
+11. Test and Validation Plan (Execution-Focused)
+
+11.1 Functional Test Items
+
+- Auth tests: sign-up/login/logout/invalid input
+- Run tests: start/pause/resume/stop/save
+- Retrieval tests: history/points/ranking/territory screens
+- Link tests: point item → related run report
+
+11.2 Boundary-Case Tests
+
+- Low GPS quality (dense buildings/tunnels)
+- Temporary network loss and reconnect
+- Long running sessions (30+ minutes)
+- Background-to-foreground app transitions
+
+11.3 Result Verification Method
+
+- Maintain feature-based checklists
+- Record reproducible errors with conditions/logs
+- Re-run same scenarios after fixes for regression checks
+
+Automated tests are still limited, but we plan to strengthen unit testing for service layers and session engine before the final presentation.
+
+
+12. Remaining Work Checklist
+
+12.1 Stabilization
+
+- [ ] Unify period-filter logic
+- [ ] Standardize function/event/file naming
+- [ ] Improve save-failure guidance messages
+
+12.2 Quality
+
+- [ ] Add core service unit tests
+- [ ] Add session-engine boundary tests
+- [ ] Check map rendering performance
+
+12.3 Final Presentation
+
+- [ ] Conduct at least two full demo rehearsals
+- [ ] Ensure slide flow matches real app flow
+- [ ] Prepare anticipated Q&A
+
+
+13. Reconfirming Final Priorities
+
+The midterm goal was feature implementation, and that goal has mostly been achieved. The final-stage goal is completeness and reliability.
+
+Remaining priorities:
+
+1) Minimize critical-flow errors
+2) Ensure consistency of displayed data
+3) Strengthen testing
+4) Improve demo execution quality
+
+By following these priorities, we expect to improve both persuasiveness and demonstration stability in the final evaluation.
