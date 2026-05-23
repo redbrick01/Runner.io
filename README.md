@@ -386,4 +386,5 @@ DB 구조는 `supabase/migrations/20260523142500_initial_remote_schema.sql` 및 
 | `docs/final_midterm_report_en.txt` | 문서 내용을 텍스트로 확인하여 README 반영 |
 | `docs/PROJECT_STRUCTURE.md` | 실제 저장소 구조, 앱/백엔드/네이티브 구성, 데이터 흐름 |
 | `docs/test_plan_and_results.md` | 테스트 계획, 검증 대상, E2E 확인 항목 |
+| `docs/error_reports/` | 앱 복귀 대시보드 데이터 미표시, iOS 화면 잠금 TTS 미출력 등 이슈별 원인 분석과 수정/검증 기록 |
 | `docs/PRE_GIT_CHECKLIST.md` | 공개 저장소 업로드 전 키/생성 파일/검증 명령 주의사항 |

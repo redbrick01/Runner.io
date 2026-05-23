@@ -108,6 +108,11 @@ class UserProfileSnapshot {
     if (value is num) return value.toDouble();
     return double.tryParse(value.toString());
   }
+
+  bool get hasIdentityData =>
+      id != null ||
+      userId != null ||
+      (nickName != null && nickName!.trim().isNotEmpty);
 }
 
 class UserProfileStore extends ChangeNotifier {
@@ -130,6 +135,9 @@ class UserProfileStore extends ChangeNotifier {
     try {
       final decoded = await ProfileService.instance.fetchCurrentProfile();
       var snapshot = UserProfileSnapshot.fromResponseMap(decoded);
+      if (!snapshot.hasIdentityData) {
+        throw StateError('user-ranking returned an empty profile');
+      }
       final resolvedRank = await _fetchLeaderboardRank();
       if (resolvedRank != null && resolvedRank > 0) {
         snapshot = snapshot.copyWith(rank: resolvedRank);

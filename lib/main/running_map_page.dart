@@ -601,7 +601,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _isAppInForeground = state == AppLifecycleState.resumed;
     if (state == AppLifecycleState.resumed) {
-      unawaited(_fetchUserRanking());
+      unawaited(_fetchUserRanking(force: true));
       if (Platform.isAndroid && _isStarted) {
         unawaited(() async {
           await _restoreAndroidBackgroundSnapshot();

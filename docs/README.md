@@ -14,6 +14,8 @@
 | `PROJECT_STRUCTURE.md` | 실제 저장소 폴더 구조, 앱/백엔드/네이티브 구성, 주요 데이터 흐름 설명 |
 | `PRE_GIT_CHECKLIST.md` | GitHub 공개 전 제외 파일, 민감 정보, 검증 명령 체크리스트 |
 | `test_plan_and_results.md` | 테스트 계획, 자동/수동 검증 항목, E2E 테스트 결과 정리 |
+| `error_reports/dashboard_resume_error_report.md` | 앱 백그라운드 복귀 후 메인 대시보드 데이터 미표시 이슈의 원인 분석, 수정 내용, 검증 결과 정리 |
+| `error_reports/ios_locked_split_tts_issue_report.md` | iOS 화면 잠금 중 킬로미터당 페이스 TTS 미출력 이슈의 원인 분석, 수정 내용, 검증 계획 정리 |
 
 현재 `docs/`에서 확인되는 발표자료 또는 최종보고서 별도 파일은 없습니다. 중간보고서와 영문 번역본, 구조/테스트 문서를 기준으로 문서화를 진행했습니다.
 
@@ -30,6 +32,14 @@
   - Flutter 앱, Supabase backend, Android/iOS native 연동 설명
 - `test_plan_and_results.md`
   - 기능 테스트, 경계 상황, 회귀 검증 방식과 실행 결과 정리
+- `error_reports/dashboard_resume_error_report.md`
+  - 메인 대시보드 점령 면적/랭킹/포인트 데이터의 로드 흐름 정리
+  - 앱 복귀 시 재조회와 프로필 캐시 방어 로직 수정 내역 정리
+  - iPhone 실기기 실행 및 통합 테스트 결과 기록
+- `error_reports/ios_locked_split_tts_issue_report.md`
+  - iOS 화면 잠금 중 페이스 TTS 미출력 흐름 정리
+  - Flutter TTS와 iOS 네이티브 `AVSpeechSynthesizer` 백그라운드 안내 경로 비교
+  - 수정 파일, 검증 결과, 실기기 테스트 계획 기록
 - `PRE_GIT_CHECKLIST.md`
   - 공개 저장소 업로드 전 API key, build 산출물, 생성 파일 관리 기준 정리
 
@@ -42,6 +52,8 @@ README.md
 -> docs/README.md
 -> docs/PROJECT_STRUCTURE.md
 -> docs/test_plan_and_results.md
+-> docs/error_reports/dashboard_resume_error_report.md
+-> docs/error_reports/ios_locked_split_tts_issue_report.md
 -> docs/PRE_GIT_CHECKLIST.md
 -> 중간보고서 docx/txt
 ```
@@ -56,6 +68,10 @@ PROJECT_STRUCTURE.md
 -> 실제 코드 구조와 아키텍처 설명
 test_plan_and_results.md
 -> 구현 기능 검증 방법 정리
+error_reports/dashboard_resume_error_report.md
+-> 앱 복귀 대시보드 이슈 원인과 수정/검증 결과 정리
+error_reports/ios_locked_split_tts_issue_report.md
+-> iOS 잠금 상태 페이스 TTS 이슈 원인과 수정/검증 계획 정리
 PRE_GIT_CHECKLIST.md
 -> 공개 전 정리 기준 제공
 ```
@@ -74,6 +90,7 @@ PRE_GIT_CHECKLIST.md
 - 졸업작품 제출 문서 관리
 - GitHub 공개용 README 작성 근거
 - 프로젝트 구조와 테스트 결과 공유
+- 에러 리포트와 이슈별 수정/검증 기록 관리
 - 구현 완료 기능과 향후 계획 구분
 
 ## 참고 사항
