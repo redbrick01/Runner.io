@@ -21,13 +21,13 @@
 
 ### 3.1 기능 변경 기록 문서 작성
 
-새 기능 또는 큰 기능 변경은 `docs/feature_update_기능명.md` 형식으로 기록한다.
+새 기능 또는 큰 기능 변경은 `docs/new_features/<feature>/feature_update_기능명.md` 형식으로 기록한다.
 
 예시:
 
 ```text
-docs/feature_update_achievements.md
-docs/features/running_analysis/feature_update.md
+docs/new_features/<feature>/feature_update_achievements.md
+docs/new_features/running_analysis/feature_update.md
 ```
 
 문서에는 다음 항목을 포함한다.
@@ -82,7 +82,7 @@ docs/features/running_analysis/feature_update.md
 
 ### 3.2 테스트 문서 갱신
 
-기능 테스트가 추가되면 `docs/test_plan_and_results.md`를 갱신한다.
+기능 테스트가 추가되면 `docs/simple_patches/test_plan_and_results.md`를 갱신한다.
 
 최소 갱신 항목:
 
@@ -121,7 +121,7 @@ flutter test
 
 ### 3.3 프로젝트 구조 문서 갱신
 
-새 파일, 새 화면, 새 서비스, 새 Edge Function, 새 DB 테이블이 생기면 `docs/PROJECT_STRUCTURE.md`를 갱신한다.
+새 파일, 새 화면, 새 서비스, 새 Edge Function, 새 DB 테이블이 생기면 `docs/simple_patches/PROJECT_STRUCTURE.md`를 갱신한다.
 
 갱신 기준:
 
@@ -173,8 +173,8 @@ flutter test
 | 2 | 구현 요약 정리 | 사용자 기능과 내부 변경 분리 |
 | 3 | 테스트 실행 | 최소 관련 테스트와 `flutter analyze` 실행 |
 | 4 | 테스트 결과 기록 | 명령/결과/실패 수정 사항 기록 |
-| 5 | 기능 변경 문서 작성 | `docs/feature_update_기능명.md` 작성 |
-| 6 | 테스트 문서 갱신 | `docs/test_plan_and_results.md` 갱신 |
+| 5 | 기능 변경 문서 작성 | `docs/new_features/<feature>/feature_update_기능명.md` 작성 |
+| 6 | 테스트 문서 갱신 | `docs/simple_patches/test_plan_and_results.md` 갱신 |
 | 7 | 구조 문서 갱신 | 새 화면/서비스/API/DB가 있으면 반영 |
 | 8 | README 갱신 판단 | 사용자 기능 목록 변화가 있으면 반영 |
 | 9 | 남은 리스크 기록 | 실기기/운영 데이터/수동 검증 항목 명시 |
@@ -215,9 +215,9 @@ flutter test
 
 필수:
 
-- `docs/feature_update_achievements.md` 작성
-- `docs/test_plan_and_results.md`에 배지 계산/UI 테스트 결과 추가
-- `docs/PROJECT_STRUCTURE.md`에 `achievement_page.dart`, `achievement_service.dart` 추가
+- `docs/new_features/<feature>/feature_update_achievements.md` 작성
+- `docs/simple_patches/test_plan_and_results.md`에 배지 계산/UI 테스트 결과 추가
+- `docs/simple_patches/PROJECT_STRUCTURE.md`에 `achievement_page.dart`, `achievement_service.dart` 추가
 - `docs/README.md` 문서 목록 갱신
 
 선택:

@@ -5,7 +5,7 @@
 기준 사례(원본 MONEYFY 프로젝트 작업 흐름):
 
 - `docs/investment_performance_report_plan.md`
-- `docs/tmp_investment_performance_development_report.md`
+- `docs/new_features/investment_performance/tmp_development_report.md`
 - `docs/investment_performance_verification_test_plan.md`
 - `docs/investment_performance_test_report_20260524.md`
 
@@ -39,10 +39,10 @@
 
 | 문서 유형 | 파일명 예시 | 목적 |
 | --- | --- | --- |
-| Feature plan | `docs/<feature>_plan.md` | 목표, 범위, UX, 데이터/API, 단계별 개발 계획 |
-| Verification test plan | `docs/<feature>_verification_test_plan.md` | 자동 테스트, 수동 QA, acceptance criteria |
-| Test report | `docs/<feature>_test_report_YYYYMMDD.md` | 실제 실행한 테스트와 결과 |
-| Implementation report | `docs/<feature>_implementation_report_YYYYMMDD.md` | 배포/운영/데이터 보정까지 포함한 최종 보고 |
+| Feature plan | `docs/new_features/<feature>/plan.md` | 목표, 범위, UX, 데이터/API, 단계별 개발 계획 |
+| Verification test plan | `docs/new_features/<feature>/verification_test_plan.md` | 자동 테스트, 수동 QA, acceptance criteria |
+| Test report | `docs/new_features/<feature>/test_report_YYYYMMDD.md` | 실제 실행한 테스트와 결과 |
+| Implementation report | `docs/new_features/<feature>/implementation_report_YYYYMMDD.md` | 배포/운영/데이터 보정까지 포함한 최종 보고 |
 
 영구 문서를 추가하면 `docs/README.md`에 링크를 추가합니다.
 
@@ -52,9 +52,9 @@
 
 | 문서 유형 | 파일명 예시 | 삭제 시점 |
 | --- | --- | --- |
-| Execution plan | `docs/tmp_<feature>_execution_plan.md` | 구현 완료 후 |
-| Development report | `docs/tmp_<feature>_development_report.md` | 최종 implementation report로 승격하거나 릴리스 후 정리 |
-| Investigation notes | `docs/tmp_<feature>_investigation.md` | 결론이 영구 문서에 반영된 후 |
+| Execution plan | `docs/new_features/<feature>/tmp_execution_plan.md` | 구현 완료 후 |
+| Development report | `docs/new_features/<feature>/tmp_development_report.md` | 최종 implementation report로 승격하거나 릴리스 후 정리 |
+| Investigation notes | `docs/new_features/<feature>/tmp_investigation.md` | 결론이 영구 문서에 반영된 후 |
 
 임시 문서는 `tmp_` prefix를 붙입니다. `docs/README.md`에는 연결하지 않습니다.
 
@@ -103,7 +103,7 @@
 파일명:
 
 ```text
-docs/<feature>_plan.md
+docs/new_features/<feature>/plan.md
 ```
 
 완료 기준:
@@ -143,7 +143,7 @@ docs/<feature>_plan.md
 파일명:
 
 ```text
-docs/tmp_<feature>_execution_plan.md
+docs/new_features/<feature>/tmp_execution_plan.md
 ```
 
 필수 내용:
@@ -203,7 +203,7 @@ docs/tmp_<feature>_execution_plan.md
 파일명:
 
 ```text
-docs/tmp_<feature>_development_report.md
+docs/new_features/<feature>/tmp_development_report.md
 ```
 
 필수 내용:
@@ -236,7 +236,7 @@ docs/tmp_<feature>_development_report.md
 파일명:
 
 ```text
-docs/<feature>_verification_test_plan.md
+docs/new_features/<feature>/verification_test_plan.md
 ```
 
 필수 내용:
@@ -299,7 +299,7 @@ flutter test test/ui_component_smoke_test.dart
 파일명:
 
 ```text
-docs/<feature>_test_report_YYYYMMDD.md
+docs/new_features/<feature>/test_report_YYYYMMDD.md
 ```
 
 필수 내용:
@@ -381,12 +381,12 @@ flutter analyze
 
 | 목적 | 파일명 |
 | --- | --- |
-| 기능 계획 | `docs/<feature>_plan.md` |
-| 임시 실행 계획 | `docs/tmp_<feature>_execution_plan.md` |
-| 임시 개발 리포트 | `docs/tmp_<feature>_development_report.md` |
-| 검증/테스트 계획 | `docs/<feature>_verification_test_plan.md` |
-| 테스트 보고서 | `docs/<feature>_test_report_YYYYMMDD.md` |
-| 구현 보고서 | `docs/<feature>_implementation_report_YYYYMMDD.md` |
+| 기능 계획 | `docs/new_features/<feature>/plan.md` |
+| 임시 실행 계획 | `docs/new_features/<feature>/tmp_execution_plan.md` |
+| 임시 개발 리포트 | `docs/new_features/<feature>/tmp_development_report.md` |
+| 검증/테스트 계획 | `docs/new_features/<feature>/verification_test_plan.md` |
+| 테스트 보고서 | `docs/new_features/<feature>/test_report_YYYYMMDD.md` |
+| 구현 보고서 | `docs/new_features/<feature>/implementation_report_YYYYMMDD.md` |
 
 `<feature>`는 snake_case를 사용합니다.
 

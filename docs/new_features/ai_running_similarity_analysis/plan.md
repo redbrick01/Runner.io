@@ -387,7 +387,7 @@ LLM은 서버에서만 호출한다.
 - integration test 확장
 - 수동 QA 시나리오 작성
 - 구현 완료 후 temporary report와 final implementation report 작성
-- `docs/PROJECT_STRUCTURE.md`, `README.md`, `docs/README.md` 갱신
+- `docs/simple_patches/PROJECT_STRUCTURE.md`, `README.md`, `docs/README.md` 갱신
 
 완료 기준:
 

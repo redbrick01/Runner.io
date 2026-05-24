@@ -21,20 +21,20 @@
 
 ## 3. 오류 수정 문서 위치
 
-오류 수정 보고서는 기본적으로 `docs/error_reports/` 아래에 저장한다.
+오류 수정 보고서는 기본적으로 `docs/bug_fixes/` 아래에 저장한다.
 
 파일명 규칙:
 
 ```text
-docs/error_reports/이슈명_issue_report.md
-docs/error_reports/이슈명_error_report.md
+docs/bug_fixes/이슈명_issue_report.md
+docs/bug_fixes/이슈명_error_report.md
 ```
 
 예시:
 
 ```text
-docs/error_reports/dashboard_resume_error_report.md
-docs/error_reports/ios_locked_split_tts_issue_report.md
+docs/bug_fixes/dashboard_resume_error_report.md
+docs/bug_fixes/ios_locked_split_tts_issue_report.md
 ```
 
 ## 4. 오류 수정 보고서 표준 형식
@@ -222,12 +222,12 @@ flutter test
 
 | 문서 | 갱신 기준 |
 |---|---|
-| `docs/error_reports/*.md` | 모든 주요 오류 수정은 새 리포트 작성 |
-| `docs/test_plan_and_results.md` | 새 테스트가 추가되었거나 검증 범위가 넓어진 경우 |
-| `docs/PROJECT_STRUCTURE.md` | 오류 수정 과정에서 구조, 데이터 흐름, 서비스 책임이 바뀐 경우 |
+| `docs/bug_fixes/*.md` | 모든 주요 오류 수정은 새 리포트 작성 |
+| `docs/simple_patches/test_plan_and_results.md` | 새 테스트가 추가되었거나 검증 범위가 넓어진 경우 |
+| `docs/simple_patches/PROJECT_STRUCTURE.md` | 오류 수정 과정에서 구조, 데이터 흐름, 서비스 책임이 바뀐 경우 |
 | `docs/README.md` | 새 오류 리포트를 만들었거나 문서 읽기 순서가 바뀐 경우 |
 | 루트 `README.md` | 사용자 안내, 실행 방법, 제한 사항이 바뀐 경우 |
-| `docs/PRE_GIT_CHECKLIST.md` | 공개 전 주의해야 할 민감 정보/생성 파일/검증 명령이 바뀐 경우 |
+| `docs/simple_patches/PRE_GIT_CHECKLIST.md` | 공개 전 주의해야 할 민감 정보/생성 파일/검증 명령이 바뀐 경우 |
 
 ## 8. 완료 보고 형식
 
@@ -254,9 +254,9 @@ flutter test
 
 새 오류 리포트를 작성할 때는 다음 기존 문서를 참고한다.
 
-- `docs/error_reports/dashboard_resume_error_report.md`
+- `docs/bug_fixes/dashboard_resume_error_report.md`
   - 앱 생명주기, 캐시, API 응답 방어, 회귀 테스트 기록 예시
-- `docs/error_reports/ios_locked_split_tts_issue_report.md`
+- `docs/bug_fixes/ios_locked_split_tts_issue_report.md`
   - iOS 실기기, 백그라운드, 네이티브 MethodChannel, 수동 테스트 계획 예시
 
 ## 10. 주의 사항
