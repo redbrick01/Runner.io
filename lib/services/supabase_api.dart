@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'supabase_config.dart';
+
 class ApiException implements Exception {
   const ApiException(this.message, {this.statusCode});
 
@@ -18,9 +20,8 @@ class ApiException implements Exception {
 class SupabaseApi {
   SupabaseApi._();
 
-  static const String baseUrl = 'https://ifqrceunenzqusppfxgi.supabase.co';
-  static const String anonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmcXJjZXVuZW56cXVzcHBmeGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzAxMDksImV4cCI6MjA4MDE0NjEwOX0.IDaoPRKf3UjFIz2ZlxwCfRjcP-vLjxA-dblk04CLF6A';
+  static String get baseUrl => SupabaseConfig.url;
+  static String get anonKey => SupabaseConfig.anonKey;
 
   static User? get currentUser => Supabase.instance.client.auth.currentUser;
   static Session? get currentSession =>
@@ -30,6 +31,7 @@ class SupabaseApi {
     String functionName, {
     Map<String, dynamic>? queryParameters,
   }) {
+    SupabaseConfig.requireConfigured();
     final normalizedQuery = queryParameters?.map(
       (key, value) => MapEntry(key, value.toString()),
     );
@@ -43,6 +45,7 @@ class SupabaseApi {
     bool includeAuthorization = true,
     Session? session,
   }) {
+    SupabaseConfig.requireConfigured();
     final result = <String, String>{'apikey': anonKey};
 
     if (includeJsonContentType) {
