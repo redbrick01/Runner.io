@@ -41,6 +41,42 @@ function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function validateFiniteNumber(
+  value: unknown,
+  fieldName: string,
+  min: number,
+  max: number,
+): { value: number } | { error: string } {
+  const parsed = toFiniteNumber(value);
+  if (parsed === null || parsed < min || parsed > max) {
+    return {
+      error: `${fieldName} must be a number between ${min} and ${max}`,
+    };
+  }
+  return { value: parsed };
+}
+
+function validatePathGeom(
+  value: unknown,
+): { value: string } | { error: string } {
+  if (typeof value !== "string") {
+    return { error: "path_geom must be a WKT LineString or MultiLineString" };
+  }
+
+  const normalized = value.trim().toUpperCase();
+  const isSupportedType = normalized.startsWith("LINESTRING") ||
+    normalized.startsWith("MULTILINESTRING");
+  const containsCoordinates = normalized.includes("(") &&
+    normalized.includes(")");
+  if (!isSupportedType || !containsCoordinates || value.length > 200000) {
+    return {
+      error: "path_geom must be a valid WKT LineString or MultiLineString",
+    };
+  }
+
+  return { value };
+}
+
 function json(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
     ...init,
@@ -147,6 +183,41 @@ serve(async (req: Request) => {
 
     const distanceValue = toFiniteNumber(payload.distance);
     const durationValue = toFiniteNumber(payload.duration);
+    const distanceValidation = validateFiniteNumber(
+      payload.distance,
+      "distance",
+      1,
+      200000,
+    );
+    if ("error" in distanceValidation) {
+      return json({ error: distanceValidation.error }, { status: 400 });
+    }
+
+    const durationValidation = validateFiniteNumber(
+      payload.duration,
+      "duration",
+      1,
+      86400,
+    );
+    if ("error" in durationValidation) {
+      return json({ error: durationValidation.error }, { status: 400 });
+    }
+
+    const pointValidation = validateFiniteNumber(
+      payload.point,
+      "point",
+      0,
+      100000,
+    );
+    if ("error" in pointValidation) {
+      return json({ error: pointValidation.error }, { status: 400 });
+    }
+
+    const pathGeomValidation = validatePathGeom(payload.path_geom);
+    if ("error" in pathGeomValidation) {
+      return json({ error: pathGeomValidation.error }, { status: 400 });
+    }
+
     let caloriesValue = toFiniteNumber(payload.calories);
 
     // Fallback: 클라이언트가 calories를 보내지 않았거나 비정상 값이면 서버에서 보정 계산
@@ -178,10 +249,10 @@ serve(async (req: Request) => {
     const insertRow: RunInsertRow = {
       started_at: payload.started_at,
       ended_at: payload.ended_at,
-      duration: payload.duration,
-      distance: payload.distance,
-      point: payload.point,
-      path_geom: payload.path_geom,
+      duration: durationValidation.value,
+      distance: distanceValidation.value,
+      point: pointValidation.value,
+      path_geom: pathGeomValidation.value,
       avg_pace: payload.avg_pace,
       calories: caloriesValue,
       user_id: uid,
