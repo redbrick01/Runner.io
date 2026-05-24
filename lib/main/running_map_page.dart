@@ -11,6 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import '../app_colors.dart';
 import '../design/app_design.dart';
 import '../services/run_service.dart';
+import '../services/run_save_payload.dart';
 import '../services/running_map_service.dart';
 import 'ranking_page.dart';
 import 'point_history_page.dart';
@@ -1975,34 +1976,25 @@ class _RunningMapPageState extends State<RunningMapPage>
         totalCalories: calculatedCalories,
       );
 
-      final Map<String, dynamic> resultData = {
-        "started_at": _startTime?.toUtc().toIso8601String(),
-        "ended_at": endTime.toUtc().toIso8601String(),
-        "duration": _seconds,
-        "distance": finalDistanceMeters,
-        "point": calculatedPoint,
-        "avg_pace": avgPaceSecondsPerKm,
-        "calories": calculatedCalories,
-        "total_ascent": _totalAscent,
-        "path_geom": segmentedPathGeom,
-        "splits": runSplits,
-        "route_points": routeCopy.map((point) => point.toJson()).toList(),
-      };
+      final savePayload = RunSavePayload(
+        startedAt: _startTime,
+        endedAt: endTime,
+        durationSeconds: _seconds,
+        distanceMeters: finalDistanceMeters,
+        point: calculatedPoint,
+        avgPaceSecondsPerKm: avgPaceSecondsPerKm,
+        calories: calculatedCalories,
+        totalAscentMeters: _totalAscent,
+        segmentedPathGeom: segmentedPathGeom,
+        flattenedPathGeom: flattenedPathGeom,
+        splits: runSplits,
+        routePoints: routeCopy.map((point) => point.toJson()).toList(),
+      );
 
       Map<String, dynamic>? savedRunData;
       Future<Map<String, dynamic>?> tryCreateRun(String pathGeom) async {
         final decoded = await RunService.instance.createRun(
-          payload: {
-            "started_at": resultData["started_at"],
-            "ended_at": resultData["ended_at"],
-            "duration": resultData["duration"],
-            "distance": resultData["distance"],
-            "point": resultData["point"],
-            "avg_pace": resultData["avg_pace"],
-            "calories": resultData["calories"],
-            "path_geom": pathGeom,
-            "splits": resultData["splits"],
-          },
+          payload: savePayload.toCreateRunBody(pathGeom: pathGeom),
         );
         return _extractSavedRunData(decoded);
       }
@@ -2055,10 +2047,7 @@ class _RunningMapPageState extends State<RunningMapPage>
         return;
       }
 
-      savedRunData['route_points'] = routeCopy
-          .map((point) => point.toJson())
-          .toList();
-      savedRunData['total_ascent'] = _totalAscent;
+      savedRunData.addAll(savePayload.toResultData());
       if (calculatedCalories != null &&
           calculatedCalories.isFinite &&
           calculatedCalories > 0) {
