@@ -82,7 +82,7 @@
 
 ## Known Limitations
 
-- 로컬 Supabase DB에는 별도 적용하지 않았다. 검증 기준은 테스트 프로젝트 `ifqrceunenzqusppfxgi`이다.
+- 로컬 Supabase DB에는 별도 적용하지 않았다. 검증 기준은 별도 테스트 프로젝트이다.
 - 기존 러닝의 LLM 리포트 백필은 MVP 범위에서 제외하고 embedding 백필만 제공한다.
 - 이전 schema 오류로 `failed` 저장된 개별 리포트는 사용자가 화면에서 재시도하면 새 로직으로 덮어쓴다.
 

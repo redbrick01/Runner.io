@@ -150,7 +150,7 @@ deno check
 배포 대상 Supabase project:
 
 ```text
-ifqrceunenzqusppfxgi
+<test-project-ref>
 ```
 
 배포 함수:
@@ -184,7 +184,7 @@ territory-geojson
 테스트 사용자:
 
 ```text
-codex_test_20260524000103@example.com
+<test-user-email>
 ```
 
 검증 흐름:
@@ -324,8 +324,8 @@ integration_test/runner_api_e2e_test.dart
 
 ```bash
 flutter test integration_test/runner_api_e2e_test.dart \
-  --dart-define=RUNNER_E2E_EMAIL=codex_test_20260524000103@example.com \
-  --dart-define=RUNNER_E2E_PASSWORD=CodexTest!20260524000103
+  --dart-define=RUNNER_E2E_EMAIL="$RUNNER_E2E_EMAIL" \
+  --dart-define=RUNNER_E2E_PASSWORD="$RUNNER_E2E_PASSWORD"
 ```
 
 결과:
@@ -738,8 +738,8 @@ API/DB E2E 테스트:
 
 ```bash
 flutter test integration_test/runner_api_e2e_test.dart \
-  --dart-define=RUNNER_E2E_EMAIL=codex_test_20260524000103@example.com \
-  --dart-define=RUNNER_E2E_PASSWORD=CodexTest!20260524000103
+  --dart-define=RUNNER_E2E_EMAIL="$RUNNER_E2E_EMAIL" \
+  --dart-define=RUNNER_E2E_PASSWORD="$RUNNER_E2E_PASSWORD"
 ```
 
 ## 14. 최신 지도/기기 검증 반영

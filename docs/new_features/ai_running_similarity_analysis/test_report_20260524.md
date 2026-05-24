@@ -10,7 +10,7 @@ AI 러닝 유사도 분석 기능의 Flutter parsing/UI, Supabase Edge Function 
 - Workspace: `/Users/yw0410/Desktop/Project/runner_flutter`
 - Flutter/Dart: local project toolchain
 - Edge Function checker: Deno
-- Supabase project: `ifqrceunenzqusppfxgi`
+- Supabase project: 별도 테스트 프로젝트
 - Device: iPhone, iOS 26.3.1
 - LLM model: `gpt-5.4-mini`
 - Embedding model: Supabase built-in `gte-small`

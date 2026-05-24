@@ -13,7 +13,7 @@
 
 ## 2. 재현 절차
 
-1. 연결된 Supabase 프로젝트 `ifqrceunenzqusppfxgi`에서 DB lint를 실행한다.
+1. 연결된 Supabase 테스트 프로젝트에서 DB lint를 실행한다.
 2. `supabase db lint --linked` 결과를 확인한다.
 3. `public.apply_territory_points()` 오류와 PostGIS 확장 함수 lint 결과를 구분한다.
 4. `supabase db advisors --linked --output json`으로 security/performance advisor 결과를 확인한다.
@@ -127,7 +127,7 @@ supabase migration list --linked
 | 테스트 | 절차 | 기대 결과 | 실제 결과 | 성공 여부 |
 |---|---|---|---|---|
 | Territory GeoJSON 공개 호출 | `territory-geojson?limit=1` HTTPS 호출 | 200 JSON 응답 | `FeatureCollection` 응답 | 성공 |
-| Edge Function 배포 확인 | `supabase functions list --project-ref ifqrceunenzqusppfxgi` | 수정 대상 함수 version 갱신 | `user-ranking` v11, `territory-geojson` v7 | 성공 |
+| Edge Function 배포 확인 | `supabase functions list --project-ref <test-project-ref>` | 수정 대상 함수 version 갱신 | `user-ranking` v11, `territory-geojson` v7 | 성공 |
 
 ### 10.3 회귀 테스트
 

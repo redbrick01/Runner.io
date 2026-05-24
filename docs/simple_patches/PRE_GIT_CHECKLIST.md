@@ -67,8 +67,8 @@ flutter test
 
 ```bash
 flutter test integration_test/runner_api_e2e_test.dart \
-  --dart-define=RUNNER_E2E_EMAIL=your-test-user@example.com \
-  --dart-define=RUNNER_E2E_PASSWORD=your-password
+  --dart-define=RUNNER_E2E_EMAIL="$RUNNER_E2E_EMAIL" \
+  --dart-define=RUNNER_E2E_PASSWORD="$RUNNER_E2E_PASSWORD"
 ```
 
 Android 네이티브 Kotlin 컴파일 확인:

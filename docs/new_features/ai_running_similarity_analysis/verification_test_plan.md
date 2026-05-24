@@ -49,7 +49,7 @@ flutter test
 flutter test
 ```
 
-원격 Supabase까지 포함하는 검증은 테스트 계정/프로젝트에서 별도로 수행한다. 2026-05-24 기준 테스트 프로젝트 `ifqrceunenzqusppfxgi`와 실제 iPhone에서 주요 AI 생성 흐름을 검증했다.
+원격 Supabase까지 포함하는 검증은 테스트 계정/프로젝트에서 별도로 수행한다. 2026-05-24 기준 별도 테스트 프로젝트와 실제 iPhone에서 주요 AI 생성 흐름을 검증했다.
 
 ## Acceptance Criteria
 

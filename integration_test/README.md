@@ -24,8 +24,8 @@ flutter test integration_test/runner_api_e2e_test.dart
 
 ```bash
 flutter test integration_test/runner_api_e2e_test.dart \
-  --dart-define=RUNNER_E2E_EMAIL=your-test-user@example.com \
-  --dart-define=RUNNER_E2E_PASSWORD=your-password
+  --dart-define=RUNNER_E2E_EMAIL="$RUNNER_E2E_EMAIL" \
+  --dart-define=RUNNER_E2E_PASSWORD="$RUNNER_E2E_PASSWORD"
 ```
 
 ## 관련 기능
@@ -42,4 +42,3 @@ flutter test integration_test/runner_api_e2e_test.dart \
 - `RUNNER_E2E_EMAIL`과 `RUNNER_E2E_PASSWORD`를 생략하면 테스트가 새 사용자를 생성할 수 있습니다.
 - 원격 Supabase 프로젝트에 테스트 데이터가 남을 수 있으므로 운영 데이터와 분리된 테스트 계정 또는 별도 프로젝트 사용을 권장합니다.
 - 네트워크 상태와 원격 Supabase 설정에 따라 테스트 결과가 달라질 수 있습니다.
-
