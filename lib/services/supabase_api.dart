@@ -113,7 +113,6 @@ class SupabaseApi {
 
   static dynamic _decodeResponse(http.Response response, String functionName) {
     debugPrint('$functionName response status: ${response.statusCode}');
-    debugPrint('$functionName response body: ${response.body}');
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(
