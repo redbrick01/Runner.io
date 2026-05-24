@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_colors.dart';
+import '../design/app_design.dart';
 import '../services/achievement_service.dart';
 import '../services/run_history_service.dart';
 import '../services/user_profile_store.dart';
@@ -93,10 +94,14 @@ class _AchievementPageState extends State<AchievementPage> {
           : RefreshIndicator(
               onRefresh: _loadAchievements,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                padding: AppSpacing.page,
                 children: [
                   if (_errorMessage != null) ...[
-                    _NoticeCard(message: _errorMessage!),
+                    AppNoticeCard(
+                      icon: Icons.cloud_off_rounded,
+                      title: _errorMessage!,
+                      subtitle: '잠시 후 다시 시도해 주세요.',
+                    ),
                     const SizedBox(height: 12),
                   ],
                   _SummaryCard(
@@ -211,48 +216,62 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ratio = totalCount == 0 ? 0.0 : achievedCount / totalCount;
-    return Container(
+    return AppSurface(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.18),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      color: AppColors.primary,
+      radius: 22,
+      shadow: true,
+      child: Row(
         children: [
-          const Text(
-            '업적 진행',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '업적 진행',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$achievedCount / $totalCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: ratio,
+                    minHeight: 8,
+                    backgroundColor: Colors.white.withValues(alpha: 0.22),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Colors.white,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            '$achievedCount / $totalCount',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 34,
-              height: 1,
-              fontWeight: FontWeight.w900,
+          const SizedBox(width: 16),
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(18),
             ),
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: ratio,
-              minHeight: 8,
-              backgroundColor: Colors.white.withValues(alpha: 0.22),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+            child: const Icon(
+              Icons.emoji_events_rounded,
+              color: Colors.white,
+              size: 34,
             ),
           ),
         ],
@@ -326,22 +345,27 @@ class _AchievementTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: Container(
+        child: AppSurface(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: achievement.isAchieved
-                  ? AppColors.primary.withValues(alpha: 0.28)
-                  : AppColors.border,
-            ),
-          ),
+          color: achievement.isAchieved
+              ? AppColors.surface
+              : AppColors.surfaceSoft,
+          radius: 16,
+          shadow: achievement.isAchieved,
           child: Row(
             children: [
-              Opacity(
-                opacity: opacity,
-                child: _BadgeIcon(achievement: achievement, size: 54),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: achievement.isAchieved
+                      ? AppColors.primarySoft
+                      : AppColors.background,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Opacity(
+                  opacity: opacity,
+                  child: _BadgeIcon(achievement: achievement, size: 54),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -454,43 +478,12 @@ class _ProgressBar extends StatelessWidget {
       child: LinearProgressIndicator(
         value: achievement.progressRatio,
         minHeight: 7,
-        backgroundColor: AppColors.background,
+        backgroundColor: achievement.isAchieved
+            ? AppColors.primarySoft
+            : AppColors.background,
         valueColor: AlwaysStoppedAnimation<Color>(
           achievement.isAchieved ? AppColors.primary : AppColors.secondaryText,
         ),
-      ),
-    );
-  }
-}
-
-class _NoticeCard extends StatelessWidget {
-  const _NoticeCard({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.cloud_off_rounded, color: AppColors.secondaryText),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: AppColors.secondaryText,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

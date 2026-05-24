@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../app_colors.dart';
+import '../design/app_design.dart';
 import '../services/point_history_service.dart';
 import '../services/run_history_service.dart';
 import 'run_result_page.dart';
@@ -248,37 +249,15 @@ class _PointHistoryPageState extends State<PointHistoryPage> {
   }
 
   Widget _buildRangeToggleBar() {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          _RangeTab(
-            label: '일',
-            selected: _rangeType == _PointRangeType.day,
-            onTap: () => _onRangeTypeChanged(_PointRangeType.day),
-          ),
-          _RangeTab(
-            label: '주',
-            selected: _rangeType == _PointRangeType.week,
-            onTap: () => _onRangeTypeChanged(_PointRangeType.week),
-          ),
-          _RangeTab(
-            label: '월',
-            selected: _rangeType == _PointRangeType.month,
-            onTap: () => _onRangeTypeChanged(_PointRangeType.month),
-          ),
-          _RangeTab(
-            label: '년',
-            selected: _rangeType == _PointRangeType.year,
-            onTap: () => _onRangeTypeChanged(_PointRangeType.year),
-          ),
-        ],
-      ),
+    return AppSegmentedControl<_PointRangeType>(
+      value: _rangeType,
+      onChanged: _onRangeTypeChanged,
+      options: const [
+        AppSegmentOption(value: _PointRangeType.day, label: '일'),
+        AppSegmentOption(value: _PointRangeType.week, label: '주'),
+        AppSegmentOption(value: _PointRangeType.month, label: '월'),
+        AppSegmentOption(value: _PointRangeType.year, label: '년'),
+      ],
     );
   }
 
@@ -348,13 +327,9 @@ class _PointHistoryPageState extends State<PointHistoryPage> {
   }
 
   Widget _buildRangeNavigator() {
-    return Container(
+    return AppSurface(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
+      radius: AppRadii.control,
       child: Row(
         children: [
           IconButton(
@@ -425,7 +400,7 @@ class _PointHistoryPageState extends State<PointHistoryPage> {
                 }
               },
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                padding: AppSpacing.page,
                 children: [
                   _buildRangeToggleBar(),
                   const SizedBox(height: 10),
@@ -806,44 +781,6 @@ class _PointHistoryPageState extends State<PointHistoryPage> {
       );
     }
     return card;
-  }
-}
-
-class _RangeTab extends StatelessWidget {
-  const _RangeTab({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: selected ? Colors.white : AppColors.secondaryText,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
 

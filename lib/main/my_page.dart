@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 import '../app_colors.dart';
+import '../design/app_design.dart';
 import '../login/login_page.dart';
 import '../services/achievement_service.dart';
 import '../services/auth_service.dart';
@@ -191,15 +192,12 @@ class _MyPageState extends State<MyPage> {
           : RefreshIndicator(
               onRefresh: _loadProfile,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                padding: AppSpacing.page,
                 children: [
-                  Container(
+                  AppSurface(
                     padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.border),
-                    ),
+                    radius: 22,
+                    shadow: true,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -351,12 +349,9 @@ class _MyPageState extends State<MyPage> {
                     onTap: _isTestingTts ? () {} : _testSplitTts,
                   ),
                   const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
-                    ),
+                  AppSurface(
+                    padding: EdgeInsets.zero,
+                    radius: 16,
                     child: TextButton.icon(
                       onPressed: _isLoggingOut ? null : _logout,
                       icon: _isLoggingOut
@@ -409,12 +404,10 @@ class _MyMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AppSurface(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      color: AppColors.surfaceSoft,
+      radius: 12,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -467,28 +460,27 @@ class _RepresentativeBadges extends StatelessWidget {
                   padding: const EdgeInsets.only(right: 8),
                   child: Tooltip(
                     message: badge.title,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.asset(
-                        'assets/badges/generated/icons/${badge.iconType}.png',
-                        width: 42,
-                        height: 42,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: 42,
-                            height: 42,
-                            decoration: BoxDecoration(
-                              color: AppColors.primarySoft,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(
+                    child: AppSurface(
+                      width: 48,
+                      height: 48,
+                      padding: const EdgeInsets.all(3),
+                      color: AppColors.primarySoft,
+                      radius: 13,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.asset(
+                          'assets/badges/generated/icons/${badge.iconType}.png',
+                          width: 42,
+                          height: 42,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(
                               Icons.emoji_events_rounded,
                               color: AppColors.primary,
                               size: 22,
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -521,13 +513,9 @@ class _MyMenuTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: Container(
+        child: AppSurface(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
+          radius: 16,
           child: Row(
             children: [
               Container(

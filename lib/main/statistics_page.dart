@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_colors.dart';
+import '../design/app_design.dart';
 import '../services/run_history_service.dart';
 import '../services/statistics_service.dart';
 
@@ -77,10 +78,10 @@ class _StatisticsPageState extends State<StatisticsPage> {
           : RefreshIndicator(
               onRefresh: _loadStatistics,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                padding: AppSpacing.page,
                 children: [
                   if (_errorMessage != null)
-                    _NoticeCard(
+                    AppNoticeCard(
                       icon: Icons.cloud_off_rounded,
                       title: _errorMessage!,
                       subtitle: '잠시 후 다시 시도해 주세요.',
@@ -89,18 +90,18 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     selected: _period,
                     onChanged: (period) => setState(() => _period = period),
                   ),
-                  const SizedBox(height: 14),
+                  AppSpacing.gap,
                   if (summary.isEmpty)
-                    const _NoticeCard(
+                    const AppNoticeCard(
                       icon: Icons.directions_run_rounded,
                       title: '아직 표시할 러닝 기록이 없습니다.',
                       subtitle: '러닝을 저장하면 이곳에서 성장 추이를 볼 수 있습니다.',
                     )
                   else
                     _SummarySection(summary: summary),
-                  const SizedBox(height: 14),
+                  AppSpacing.gap,
                   _DistanceChart(days: summary.recentDailyDistances),
-                  const SizedBox(height: 14),
+                  AppSpacing.gap,
                   _RecordsSection(records: summary.personalRecords),
                 ],
               ),
@@ -117,70 +118,14 @@ class _PeriodSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          _PeriodButton(
-            label: '주간',
-            selected: selected == StatisticsPeriod.week,
-            onTap: () => onChanged(StatisticsPeriod.week),
-          ),
-          _PeriodButton(
-            label: '월간',
-            selected: selected == StatisticsPeriod.month,
-            onTap: () => onChanged(StatisticsPeriod.month),
-          ),
-          _PeriodButton(
-            label: '전체',
-            selected: selected == StatisticsPeriod.all,
-            onTap: () => onChanged(StatisticsPeriod.all),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PeriodButton extends StatelessWidget {
-  const _PeriodButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          height: 40,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? Colors.white : AppColors.secondaryText,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-      ),
+    return AppSegmentedControl<StatisticsPeriod>(
+      value: selected,
+      onChanged: onChanged,
+      options: const [
+        AppSegmentOption(value: StatisticsPeriod.week, label: '주간'),
+        AppSegmentOption(value: StatisticsPeriod.month, label: '월간'),
+        AppSegmentOption(value: StatisticsPeriod.all, label: '전체'),
+      ],
     );
   }
 }
@@ -204,27 +149,27 @@ class _SummarySection extends StatelessWidget {
           mainAxisSpacing: 10,
           childAspectRatio: 1.55,
           children: [
-            _MetricCard(
+            AppMetricCard(
               label: '총 거리',
               value: _formatDistance(summary.totalDistanceMetres),
               icon: Icons.route_rounded,
             ),
-            _MetricCard(
+            AppMetricCard(
               label: '러닝 시간',
               value: _formatDuration(summary.totalDurationSeconds),
               icon: Icons.timer_rounded,
             ),
-            _MetricCard(
+            AppMetricCard(
               label: '러닝 횟수',
               value: '${summary.runCount}회',
               icon: Icons.repeat_rounded,
             ),
-            _MetricCard(
+            AppMetricCard(
               label: '평균 페이스',
               value: _formatPace(summary.averagePaceSecondsPerKm),
               icon: Icons.speed_rounded,
             ),
-            _MetricCard(
+            AppMetricCard(
               label: '획득 포인트',
               value: _formatPoint(summary.totalPoints),
               icon: Icons.stars_rounded,
@@ -243,17 +188,22 @@ class _InsightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.primarySoft,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppSurface(
+      color: AppColors.primarySoft,
       child: Row(
         children: [
-          const Icon(Icons.trending_up_rounded, color: AppColors.primary),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.surface.withValues(alpha: 0.75),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: const Icon(
+              Icons.trending_up_rounded,
+              color: AppColors.primary,
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -288,63 +238,6 @@ class _InsightCard extends StatelessWidget {
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Icon(icon, color: AppColors.primary, size: 22),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  value,
-                  style: const TextStyle(
-                    color: AppColors.text,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _DistanceChart extends StatelessWidget {
   const _DistanceChart({required this.days});
 
@@ -357,24 +250,11 @@ class _DistanceChart extends StatelessWidget {
       (max, day) => day.distanceMetres > max ? day.distanceMetres : max,
     );
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '최근 7일 거리',
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          const Text('최근 7일 거리', style: AppTextStyles.sectionTitle),
           const SizedBox(height: 18),
           SizedBox(
             height: 150,
@@ -440,24 +320,11 @@ class _RecordsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '개인 최고 기록',
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          const Text('개인 최고 기록', style: AppTextStyles.sectionTitle),
           const SizedBox(height: 12),
           ...records.map((record) {
             return Padding(
@@ -484,60 +351,6 @@ class _RecordsSection extends StatelessWidget {
               ),
             );
           }),
-        ],
-      ),
-    );
-  }
-}
-
-class _NoticeCard extends StatelessWidget {
-  const _NoticeCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppColors.text,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppColors.secondaryText,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

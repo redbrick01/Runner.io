@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
+import '../design/app_design.dart';
 import '../services/ranking_service.dart';
 import 'point_history_page.dart';
 
@@ -108,60 +109,31 @@ class _RankingPageState extends State<RankingPage> {
   }
 
   Widget _buildRangeToggleBar() {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          _RangeTab(
-            label: '일',
-            selected: _rangeType == _RankingRangeType.day,
-            onTap: () => _onRangeTypeChanged(_RankingRangeType.day),
-          ),
-          _RangeTab(
-            label: '주',
-            selected: _rangeType == _RankingRangeType.week,
-            onTap: () => _onRangeTypeChanged(_RankingRangeType.week),
-          ),
-          _RangeTab(
-            label: '월',
-            selected: _rangeType == _RankingRangeType.month,
-            onTap: () => _onRangeTypeChanged(_RankingRangeType.month),
-          ),
-          _RangeTab(
-            label: '년',
-            selected: _rangeType == _RankingRangeType.year,
-            onTap: () => _onRangeTypeChanged(_RankingRangeType.year),
-          ),
-          _RangeTab(
-            label: '전체',
-            selected: _rangeType == _RankingRangeType.all,
-            onTap: () => _onRangeTypeChanged(_RankingRangeType.all),
-          ),
-        ],
-      ),
+    return AppSegmentedControl<_RankingRangeType>(
+      value: _rangeType,
+      onChanged: _onRangeTypeChanged,
+      options: const [
+        AppSegmentOption(value: _RankingRangeType.day, label: '일'),
+        AppSegmentOption(value: _RankingRangeType.week, label: '주'),
+        AppSegmentOption(value: _RankingRangeType.month, label: '월'),
+        AppSegmentOption(value: _RankingRangeType.year, label: '년'),
+        AppSegmentOption(value: _RankingRangeType.all, label: '전체'),
+      ],
     );
   }
 
   Widget _buildRangeNavigator() {
-    return Container(
+    return AppSurface(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        _rangeLabel(),
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: AppColors.text,
-          fontWeight: FontWeight.w700,
+      radius: AppRadii.control,
+      child: Center(
+        child: Text(
+          _rangeLabel(),
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: AppColors.text,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
@@ -181,7 +153,7 @@ class _RankingPageState extends State<RankingPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              padding: AppSpacing.page,
               children: [
                 _buildRangeToggleBar(),
                 const SizedBox(height: 10),
@@ -457,44 +429,6 @@ class _RankingPageState extends State<RankingPage> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RangeTab extends StatelessWidget {
-  const _RangeTab({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: selected ? Colors.white : AppColors.secondaryText,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
         ),
       ),
     );

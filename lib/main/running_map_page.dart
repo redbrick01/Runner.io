@@ -9,6 +9,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../app_colors.dart';
+import '../design/app_design.dart';
 import '../services/run_service.dart';
 import '../services/running_map_service.dart';
 import 'ranking_page.dart';
@@ -2136,19 +2137,11 @@ class _RunningMapPageState extends State<RunningMapPage>
       top: MediaQuery.of(context).padding.top + 10,
       left: 16,
       right: 16,
-      child: Container(
+      child: AppSurface(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.95),
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
+        color: Colors.white.withValues(alpha: 0.95),
+        radius: 22,
+        shadow: true,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -2210,7 +2203,15 @@ class _RunningMapPageState extends State<RunningMapPage>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(icon, size: 20, color: AppColors.primary),
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: AppColors.primarySoft,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 17, color: AppColors.primary),
+        ),
         const SizedBox(width: 8),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2218,14 +2219,18 @@ class _RunningMapPageState extends State<RunningMapPage>
           children: [
             Text(
               label,
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
+              style: const TextStyle(
+                fontSize: 10,
+                color: AppColors.secondaryText,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             Text(
               value,
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: AppColors.text,
               ),
             ),
           ],
@@ -2241,19 +2246,12 @@ class _RunningMapPageState extends State<RunningMapPage>
       bottom: _isStarted ? -120 : 40,
       left: 20,
       right: 20,
-      child: Container(
+      child: AppSurface(
         height: 80,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.95),
-          borderRadius: BorderRadius.circular(40),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
+        padding: EdgeInsets.zero,
+        color: Colors.white.withValues(alpha: 0.95),
+        radius: 40,
+        shadow: true,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
@@ -2341,21 +2339,14 @@ class _RunningMapPageState extends State<RunningMapPage>
   Widget _buildZoomButton(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AppSurface(
         width: 48,
         height: 48,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.9),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Icon(icon, color: Colors.black87, size: 24),
+        padding: EdgeInsets.zero,
+        color: Colors.white.withValues(alpha: 0.92),
+        radius: 24,
+        shadow: true,
+        child: Icon(icon, color: AppColors.text, size: 24),
       ),
     );
   }
@@ -2367,20 +2358,13 @@ class _RunningMapPageState extends State<RunningMapPage>
       onTap: isNorthAligned ? null : _resetMapNorth,
       child: Opacity(
         opacity: isNorthAligned ? 0.55 : 1,
-        child: Container(
+        child: AppSurface(
           width: 48,
           height: 48,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.9),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
+          padding: EdgeInsets.zero,
+          color: Colors.white.withValues(alpha: 0.92),
+          radius: 24,
+          shadow: true,
           child: Center(
             child: Transform.rotate(
               angle: (-_currentBearing * math.pi) / 180,
@@ -2480,20 +2464,12 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Widget _buildRunningControlSheet() {
-    return Container(
+    return AppSurface(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.98),
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+      color: Colors.white.withValues(alpha: 0.98),
+      radius: 30,
+      shadow: true,
       child: Column(
         key: const ValueKey("running_panel"),
         mainAxisSize: MainAxisSize.min,
@@ -2505,9 +2481,8 @@ class _RunningMapPageState extends State<RunningMapPage>
               _formatTime(_seconds),
               style: const TextStyle(
                 fontSize: 48,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-                letterSpacing: -1,
+                fontWeight: FontWeight.w900,
+                color: AppColors.text,
               ),
             ),
           ),
@@ -2542,19 +2517,19 @@ class _RunningMapPageState extends State<RunningMapPage>
               children: [
                 _circleButton(
                   icon: Icons.close,
-                  color: Colors.grey.withValues(alpha: 0.5),
+                  color: AppColors.secondaryText,
                   onTap: () {
                     unawaited(_cancelRunning());
                   },
                 ),
                 _circleButton(
                   icon: _isPaused ? Icons.play_arrow : Icons.pause,
-                  color: Colors.amber,
+                  color: AppColors.warning,
                   onTap: _togglePause,
                 ),
                 _circleButton(
                   icon: Icons.stop,
-                  color: Colors.redAccent,
+                  color: AppColors.destructive,
                   onTap: () {
                     unawaited(_stopRunning());
                   },
@@ -2571,7 +2546,14 @@ class _RunningMapPageState extends State<RunningMapPage>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.secondaryText,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(height: 4),
         FittedBox(
           fit: BoxFit.scaleDown,
@@ -2579,7 +2561,7 @@ class _RunningMapPageState extends State<RunningMapPage>
             value,
             style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w900,
               color: color,
             ),
           ),
@@ -2595,10 +2577,13 @@ class _RunningMapPageState extends State<RunningMapPage>
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AppSurface(
         width: 56,
         height: 56,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        padding: EdgeInsets.zero,
+        color: color,
+        radius: 28,
+        shadow: true,
         child: Icon(icon, color: Colors.white, size: 28),
       ),
     );

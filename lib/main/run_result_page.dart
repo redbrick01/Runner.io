@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../app_colors.dart';
+import '../design/app_design.dart';
 import 'running_map_page.dart';
 import 'run_session_engine.dart';
 
@@ -326,7 +327,7 @@ class _RunResultPageState extends State<RunResultPage> {
             ),
 
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -338,14 +339,7 @@ class _RunResultPageState extends State<RunResultPage> {
                     icon: Icons.stars_rounded,
                   ),
                   const SizedBox(height: 28),
-                  const Text(
-                    "주요 기록",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.text,
-                    ),
-                  ),
+                  const Text("주요 기록", style: AppTextStyles.sectionTitle),
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -506,20 +500,10 @@ class _RunResultPageState extends State<RunResultPage> {
     required String caption,
     required IconData icon,
   }) {
-    return Container(
+    return AppSurface(
       padding: const EdgeInsets.fromLTRB(22, 18, 22, 18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppColors.border, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+      radius: AppRadii.heroCard,
+      shadow: true,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -550,10 +534,9 @@ class _RunResultPageState extends State<RunResultPage> {
                 Text(
                   value,
                   style: const TextStyle(
-                    fontSize: 32,
+                    fontSize: 36,
                     fontWeight: FontWeight.w900,
                     color: AppColors.primary,
-                    letterSpacing: -0.5,
                     height: 1.0,
                   ),
                 ),
@@ -590,26 +573,23 @@ class _RunResultPageState extends State<RunResultPage> {
     required String value,
     required String unit,
   }) {
-    return Container(
+    return AppSurface(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      radius: 22,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: AppColors.primary, size: 18),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.primarySoft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: AppColors.primary, size: 17),
+              ),
               const SizedBox(width: 8),
               Text(
                 label,
@@ -631,10 +611,9 @@ class _RunResultPageState extends State<RunResultPage> {
                   value,
                   style: TextStyle(
                     fontSize: 22,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
                     color: RunResultPage._metricValueColor,
                     height: 1.0,
-                    letterSpacing: -0.5,
                   ),
                 ),
               ),
@@ -662,20 +641,9 @@ class _RunResultPageState extends State<RunResultPage> {
     required String value,
     required String trailing,
   }) {
-    return Container(
+    return AppSurface(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      radius: 22,
       child: Row(
         children: [
           Expanded(
@@ -684,7 +652,15 @@ class _RunResultPageState extends State<RunResultPage> {
               children: [
                 Row(
                   children: [
-                    Icon(icon, color: AppColors.primary, size: 18),
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: AppColors.primarySoft,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(icon, color: AppColors.primary, size: 17),
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       label,
@@ -701,10 +677,9 @@ class _RunResultPageState extends State<RunResultPage> {
                   value,
                   style: TextStyle(
                     fontSize: 22,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
                     color: RunResultPage._metricValueColor,
                     height: 1.0,
-                    letterSpacing: -0.5,
                   ),
                 ),
               ],
@@ -723,7 +698,6 @@ class _RunResultPageState extends State<RunResultPage> {
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: AppColors.primary,
-                  letterSpacing: -0.3,
                 ),
               ),
             ),
@@ -740,26 +714,23 @@ class _RunResultPageState extends State<RunResultPage> {
     VoidCallback? onTap,
     Widget? trailing,
   }) {
-    final card = Container(
+    final card = AppSurface(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      radius: 22,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: AppColors.primary, size: 18),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.primarySoft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: AppColors.primary, size: 17),
+              ),
               const SizedBox(width: 8),
               Text(
                 label,
@@ -778,10 +749,9 @@ class _RunResultPageState extends State<RunResultPage> {
             value,
             style: TextStyle(
               fontSize: 22,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w900,
               color: RunResultPage._metricValueColor,
               height: 1.0,
-              letterSpacing: -0.5,
             ),
           ),
         ],
@@ -820,20 +790,9 @@ class _RunResultPageState extends State<RunResultPage> {
         .map((point) => (point.altitude ?? baseAltitude) - baseAltitude)
         .toList(growable: false);
 
-    return Container(
+    return AppSurface(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      radius: 22,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -906,14 +865,8 @@ class _RunResultPageState extends State<RunResultPage> {
   }
 
   Widget _buildAltitudeUnavailableCard() {
-    return Container(
-      width: double.infinity,
+    return AppSurface(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-      ),
       child: const Row(
         children: [
           Icon(Icons.terrain_outlined, color: AppColors.secondaryText),
@@ -933,14 +886,7 @@ class _RunResultPageState extends State<RunResultPage> {
   }
 
   Widget _buildSplitSection(List<Map<String, dynamic>> splits) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

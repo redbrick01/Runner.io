@@ -125,6 +125,21 @@ class MyApp extends StatelessWidget {
             borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
           ),
         ),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.text,
+          contentTextStyle: const TextStyle(color: Colors.white),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: AppColors.surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+        ),
         useMaterial3: true,
       ),
       // 세션이 있으면 지도 페이지로, 없으면 로그인 페이지로 이동

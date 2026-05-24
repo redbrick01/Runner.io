@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../app_colors.dart';
+import '../design/app_design.dart';
 import '../services/point_history_service.dart';
 import '../services/run_history_service.dart';
 import '../services/user_profile_store.dart';
@@ -354,7 +355,7 @@ class _TerritoryDetailPageState extends State<TerritoryDetailPage> {
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                padding: AppSpacing.page,
                 children: [
                   _MetricPanel(
                     currentArea: _formatArea(_currentAreaM2),
@@ -368,13 +369,10 @@ class _TerritoryDetailPageState extends State<TerritoryDetailPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Container(
+                  AppSurface(
                     height: 220,
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.border),
-                    ),
+                    padding: EdgeInsets.zero,
+                    radius: 20,
                     clipBehavior: Clip.antiAlias,
                     child: mapPoints.length < 2
                         ? const Center(
@@ -513,13 +511,7 @@ class _MetricPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppSurface(
       child: Column(
         children: [
           Row(
@@ -571,12 +563,10 @@ class _MetricCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AppSurface(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(14),
-      ),
+      color: AppColors.surfaceSoft,
+      radius: 14,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -613,24 +603,11 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: AppColors.text,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          Text(title, style: AppTextStyles.sectionTitle),
           const SizedBox(height: 12),
           child,
         ],
@@ -661,18 +638,24 @@ class _ContributorTile extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: onTap,
-          child: Container(
+          child: AppSurface(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSoft,
-              borderRadius: BorderRadius.circular(12),
-            ),
+            color: AppColors.surfaceSoft,
+            radius: 12,
             child: Row(
               children: [
-                const Icon(
-                  Icons.directions_run_rounded,
-                  color: AppColors.primary,
-                  size: 18,
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySoft,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.directions_run_rounded,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -721,15 +704,17 @@ class _TimelineTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
+      child: AppSurface(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceSoft,
-          borderRadius: BorderRadius.circular(12),
-        ),
+        color: AppColors.surfaceSoft,
+        radius: 12,
         child: Row(
           children: [
-            Icon(Icons.circle, size: 10, color: color),
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Column(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../app_colors.dart';
+import '../design/app_design.dart';
 import '../login/login_page.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
@@ -272,19 +273,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         ? '${snapshot.totalPoints.toStringAsFixed(1)} P'
         : '-';
 
-    return Container(
+    return AppSurface(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+      radius: 24,
+      shadow: true,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -342,19 +334,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   }
 
   Widget _buildSectionCard({required String title, required Widget child}) {
-    return Container(
+    return AppSurface(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.025),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+      radius: 24,
+      shadow: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -386,7 +369,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              padding: AppSpacing.page,
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -474,13 +457,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Container(
+                    AppSurface(
                       width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: AppColors.border),
-                      ),
+                      padding: EdgeInsets.zero,
+                      radius: 18,
                       child: TextButton.icon(
                         onPressed: _handleLogout,
                         icon: const Icon(
