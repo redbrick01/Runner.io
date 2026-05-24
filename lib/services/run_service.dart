@@ -5,9 +5,13 @@ class RunService {
 
   static final RunService instance = RunService._();
 
-  Future<dynamic> createRun({
-    required Map<String, dynamic> payload,
-  }) {
-    return SupabaseApi.postFunctionJson('create-run', body: payload);
+  Future<JsonMap> createRun({
+    required JsonMap payload,
+  }) async {
+    final decoded = await SupabaseApi.postFunctionJson(
+      'create-run',
+      body: payload,
+    );
+    return SupabaseApi.requireJsonMap(decoded, 'create-run');
   }
 }

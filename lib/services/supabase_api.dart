@@ -7,6 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'supabase_config.dart';
 
+typedef JsonMap = Map<String, dynamic>;
+typedef JsonList = List<dynamic>;
+
 class ApiException implements Exception {
   const ApiException(this.message, {this.statusCode});
 
@@ -112,6 +115,13 @@ class SupabaseApi {
       body: json.encode(body),
     );
     return _decodeResponse(response, functionName);
+  }
+
+  static JsonMap requireJsonMap(dynamic decoded, String functionName) {
+    if (decoded is JsonMap) {
+      return decoded;
+    }
+    throw ApiException('$functionName returned an invalid response');
   }
 
   static dynamic _decodeResponse(http.Response response, String functionName) {
