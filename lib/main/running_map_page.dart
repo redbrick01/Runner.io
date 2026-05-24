@@ -1418,6 +1418,10 @@ class _RunningMapPageState extends State<RunningMapPage>
       setState(() {
         _isLoading = false;
       });
+      _showLocationIssue(
+        '기기 위치 서비스가 꺼져 있어 현재 위치를 불러올 수 없습니다.',
+        openSettings: Geolocator.openLocationSettings,
+      );
       return;
     }
 
@@ -1428,8 +1432,20 @@ class _RunningMapPageState extends State<RunningMapPage>
         setState(() {
           _isLoading = false;
         });
+        _showLocationIssue('위치 권한이 거부되어 지도를 현재 위치로 맞출 수 없습니다.');
         return;
       }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showLocationIssue(
+        '위치 권한이 영구 거부되어 앱 설정에서 권한을 허용해야 합니다.',
+        openSettings: Geolocator.openAppSettings,
+      );
+      return;
     }
 
     final lastKnownPosition = await Geolocator.getLastKnownPosition();
@@ -1776,6 +1792,27 @@ class _RunningMapPageState extends State<RunningMapPage>
     }
 
     return null;
+  }
+
+  void _showLocationIssue(
+    String message, {
+    Future<bool> Function()? openSettings,
+  }) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: openSettings == null
+            ? null
+            : SnackBarAction(
+                label: '설정 열기',
+                onPressed: () {
+                  unawaited(openSettings());
+                },
+              ),
+      ),
+    );
   }
 
   Future<void> _stopRunning() async {
