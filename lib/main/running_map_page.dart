@@ -4,12 +4,11 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../app_colors.dart';
 import '../design/app_design.dart';
+import '../services/run_native_adapter.dart';
 import '../services/run_service.dart';
 import '../services/run_save_payload.dart';
 import '../services/running_map_service.dart';
@@ -38,9 +37,6 @@ class RunningMapPage extends StatefulWidget {
 
 class _RunningMapPageState extends State<RunningMapPage>
     with WidgetsBindingObserver {
-  static const MethodChannel _liveActivityChannel = MethodChannel(
-    'run_live_activity',
-  );
   static const double _maxAcceptedAccuracyMeters = 25;
   static const double _minMovementMeters = 3;
   static const double _maxDerivedSpeedMps = 30;
@@ -389,8 +385,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   final Map<String, LatLngBounds> _territoryMarkerBounds = {};
   final Map<String, BitmapDescriptor> _nicknameCache = {};
   BitmapDescriptor? _currentLocationIcon;
-  final FlutterTts _splitTts = FlutterTts();
-  bool _isSplitTtsConfigured = false;
+  final RunNativeAdapter _nativeAdapter = RunNativeAdapter();
   int _lastAnnouncedSplitKm = 0;
   int _lastAnnouncedSplitElapsedSeconds = 0;
   bool _iosCountdownBackgroundTaskActive = false;
@@ -459,12 +454,11 @@ class _RunningMapPageState extends State<RunningMapPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _liveActivityChannel.setMethodCallHandler(null);
     _timer?.cancel();
     _territoryTimer?.cancel();
     _countdownTimer?.cancel();
     _positionStream?.cancel();
-    _splitTts.stop();
+    unawaited(_nativeAdapter.dispose());
     unawaited(_endIosCountdownBackgroundTask());
     super.dispose();
   }
@@ -472,7 +466,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   Future<void> _beginIosCountdownBackgroundTask() async {
     if (!Platform.isIOS || _iosCountdownBackgroundTaskActive) return;
     try {
-      await _liveActivityChannel.invokeMethod<void>(
+      await _nativeAdapter.invoke<void>(
         'beginCountdownBackgroundTask',
       );
       _iosCountdownBackgroundTaskActive = true;
@@ -484,7 +478,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   Future<void> _endIosCountdownBackgroundTask() async {
     if (!Platform.isIOS || !_iosCountdownBackgroundTaskActive) return;
     try {
-      await _liveActivityChannel.invokeMethod<void>(
+      await _nativeAdapter.invoke<void>(
         'endCountdownBackgroundTask',
       );
     } catch (e) {
@@ -495,28 +489,8 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Future<void> _configureSplitTts() async {
-    if (_isSplitTtsConfigured) return;
     try {
-      if (Platform.isIOS) {
-        await _splitTts.setSharedInstance(true);
-        await _splitTts.setIosAudioCategory(
-          IosTextToSpeechAudioCategory.playback,
-          const [
-            IosTextToSpeechAudioCategoryOptions.mixWithOthers,
-            IosTextToSpeechAudioCategoryOptions.duckOthers,
-            IosTextToSpeechAudioCategoryOptions.allowBluetooth,
-            IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
-          ],
-          IosTextToSpeechAudioMode.defaultMode,
-        );
-      } else if (Platform.isAndroid) {
-        await _splitTts.setAudioAttributesForNavigation();
-      }
-      await _splitTts.setLanguage('ko-KR');
-      await _splitTts.setSpeechRate(0.48);
-      await _splitTts.setPitch(1.0);
-      await _splitTts.awaitSpeakCompletion(false);
-      _isSplitTtsConfigured = true;
+      await _nativeAdapter.configureSplitTts();
     } catch (e) {
       debugPrint('Split TTS configure failed: $e');
     }
@@ -532,28 +506,8 @@ class _RunningMapPageState extends State<RunningMapPage>
     return '$minutes분 ${seconds.toString().padLeft(2, '0')}초';
   }
 
-  Future<void> _playSplitChime() async {
-    try {
-      await _liveActivityChannel.invokeMethod<void>('playSplitChime');
-    } catch (_) {
-      try {
-        await SystemSound.play(SystemSoundType.alert);
-      } catch (e) {
-        debugPrint('Split chime play failed: $e');
-      }
-    } finally {
-      await Future<void>.delayed(const Duration(milliseconds: 180));
-    }
-  }
-
   Future<void> _playRunStartEffect() async {
-    try {
-      await _liveActivityChannel.invokeMethod<void>('playSplitChime');
-    } catch (_) {
-      try {
-        await SystemSound.play(SystemSoundType.alert);
-      } catch (_) {}
-    }
+    await _nativeAdapter.playRunStartEffect();
   }
 
   Future<void> _announceSplitIfNeeded() async {
@@ -573,14 +527,14 @@ class _RunningMapPageState extends State<RunningMapPage>
     try {
       if (!_isAppInForeground) {
         if (Platform.isAndroid) {
-          await _liveActivityChannel.invokeMethod<void>(
+          await _nativeAdapter.invoke<void>(
             'announceSplitInBackground',
             speech,
           );
           return;
         }
         if (Platform.isIOS) {
-          await _liveActivityChannel.invokeMethod<void>(
+          await _nativeAdapter.invoke<void>(
             'announceSplitInBackground',
             {
               'speech': speech,
@@ -591,10 +545,7 @@ class _RunningMapPageState extends State<RunningMapPage>
           return;
         }
       }
-      await _configureSplitTts();
-      await _playSplitChime();
-      await _splitTts.stop();
-      await _splitTts.speak(speech);
+      await _nativeAdapter.speakSplit(speech);
     } catch (e) {
       debugPrint('Split TTS speak failed: $e');
     }
@@ -670,8 +621,7 @@ class _RunningMapPageState extends State<RunningMapPage>
     }
 
     try {
-      await _liveActivityChannel
-          .invokeMethod<void>('startAndroidBackgroundTracking', {
+      await _nativeAdapter.invoke<void>('startAndroidBackgroundTracking', {
             'runId': _currentRunId,
             'title': '러닝 중',
             'elapsedSeconds': _seconds,
@@ -682,7 +632,7 @@ class _RunningMapPageState extends State<RunningMapPage>
             'routePointsJson': jsonEncode(
               _routePointSamples.map((point) => point.toJson()).toList(),
             ),
-          });
+      });
     } catch (e) {
       debugPrint('Android background tracking start failed: $e');
     }
@@ -694,7 +644,7 @@ class _RunningMapPageState extends State<RunningMapPage>
     }
 
     try {
-      await _liveActivityChannel.invokeMethod<void>(
+      await _nativeAdapter.invoke<void>(
         'stopAndroidBackgroundTracking',
       );
     } catch (e) {
@@ -708,7 +658,7 @@ class _RunningMapPageState extends State<RunningMapPage>
     }
 
     try {
-      final result = await _liveActivityChannel.invokeMethod<dynamic>(
+      final result = await _nativeAdapter.invoke<dynamic>(
         'getAndroidRunSnapshot',
       );
       if (result is! Map) {
@@ -796,17 +746,10 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Future<void> _consumePendingLiveActivityAction() async {
-    _liveActivityChannel.setMethodCallHandler((call) async {
-      if (call.method != 'onLiveActivityAction') {
-        return;
-      }
-      await _applyLiveActivityAction(
-        Map<String, dynamic>.from(call.arguments as Map),
-      );
-    });
+    _nativeAdapter.setActionHandler(_applyLiveActivityAction);
 
     try {
-      final result = await _liveActivityChannel.invokeMethod<dynamic>(
+      final result = await _nativeAdapter.invoke<dynamic>(
         'consumePendingAction',
       );
       if (result is Map) {
@@ -848,7 +791,7 @@ class _RunningMapPageState extends State<RunningMapPage>
     }
 
     try {
-      await _liveActivityChannel.invokeMethod<void>('clearPendingAction');
+      await _nativeAdapter.invoke<void>('clearPendingAction');
     } catch (e) {
       debugPrint('Live Activity action clear failed: $e');
     }
@@ -859,7 +802,7 @@ class _RunningMapPageState extends State<RunningMapPage>
 
     try {
       if (Platform.isAndroid) {
-        final granted = await _liveActivityChannel.invokeMethod<bool>(
+        final granted = await _nativeAdapter.invoke<bool>(
           'requestNotificationPermission',
         );
         if (granted != true) {
@@ -868,7 +811,7 @@ class _RunningMapPageState extends State<RunningMapPage>
         }
       }
 
-      await _liveActivityChannel.invokeMethod<String>('startLiveActivity', {
+      await _nativeAdapter.invoke<String>('startLiveActivity', {
         'runId': _currentRunId,
         'title': '러닝 중',
         'elapsedSeconds': _seconds,
@@ -885,7 +828,7 @@ class _RunningMapPageState extends State<RunningMapPage>
     if (_currentRunId == null || !_isStarted) return;
 
     try {
-      await _liveActivityChannel.invokeMethod<void>('updateLiveActivity', {
+      await _nativeAdapter.invoke<void>('updateLiveActivity', {
         'runId': _currentRunId,
         'elapsedSeconds': _seconds,
         'distanceMeters': _totalDistance,
@@ -901,7 +844,7 @@ class _RunningMapPageState extends State<RunningMapPage>
     if (_currentRunId == null) return;
 
     try {
-      await _liveActivityChannel.invokeMethod<void>('endLiveActivity', {
+      await _nativeAdapter.invoke<void>('endLiveActivity', {
         'runId': _currentRunId,
         'status': status,
       });
