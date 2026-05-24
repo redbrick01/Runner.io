@@ -1815,6 +1815,34 @@ class _RunningMapPageState extends State<RunningMapPage>
     );
   }
 
+  Future<bool> _confirmRunSaveRetry() async {
+    if (!mounted) return false;
+
+    final retry = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('러닝 저장 실패'),
+          content: const Text(
+            '네트워크 또는 서버 문제로 기록을 저장하지 못했습니다. 경로 데이터는 현재 화면에 남아 있으니 다시 시도할 수 있습니다.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('나중에'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('다시 시도'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return retry ?? false;
+  }
+
   Future<void> _stopRunning() async {
     if (_isFinishingRun || !_isStarted) {
       return;
@@ -1992,6 +2020,21 @@ class _RunningMapPageState extends State<RunningMapPage>
         }
       }
 
+      while (savedRunData == null && await _confirmRunSaveRetry()) {
+        try {
+          savedRunData = await tryCreateRun(segmentedPathGeom);
+          debugPrint("러닝 기록 서버 저장 재시도 성공");
+        } catch (e) {
+          debugPrint("세그먼트 경로 저장 재시도 실패, 단일 경로로 재시도합니다: $e");
+          try {
+            savedRunData = await tryCreateRun(flattenedPathGeom);
+            debugPrint("단일 경로로 러닝 기록 서버 저장 재시도 성공");
+          } catch (fallbackError) {
+            debugPrint("러닝 기록 서버 저장 재시도 중 오류: $fallbackError");
+          }
+        }
+      }
+
       if (savedRunData == null) {
         _session.pause();
         _refreshRunningMetrics();
@@ -2003,7 +2046,11 @@ class _RunningMapPageState extends State<RunningMapPage>
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('러닝 기록 저장에 실패했습니다.')));
+          ).showSnackBar(
+            const SnackBar(
+              content: Text('러닝 기록 저장에 실패했습니다. 네트워크 확인 후 종료를 다시 눌러주세요.'),
+            ),
+          );
         }
         return;
       }
