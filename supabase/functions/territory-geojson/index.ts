@@ -52,11 +52,58 @@ function parseBbox(value: string | null): Bbox | null | "invalid" {
   }
 
   const [minX, minY, maxX, maxY] = parts;
-  if (minX > maxX || minY > maxY) {
+  if (
+    minX > maxX || minY > maxY ||
+    minX < -180 || maxX > 180 ||
+    minY < -90 || maxY > 90
+  ) {
     return "invalid";
   }
 
   return { minX, minY, maxX, maxY };
+}
+
+function parseBoundedInt(
+  value: string | null,
+  fallback: number,
+  min: number,
+  max: number,
+): number | "invalid" {
+  const parsed = parseInt(value ?? `${fallback}`, 10);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+    return "invalid";
+  }
+  return parsed;
+}
+
+async function requireAuthenticatedUser(req: Request) {
+  const authHeader = req.headers.get("authorization") ?? "";
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length).trim()
+    : "";
+  if (!token || token === SUPABASE_ANON) {
+    return { error: "Missing access token", status: 401 };
+  }
+
+  if (!SUPABASE_URL || !SUPABASE_ANON) {
+    return {
+      error: "Missing required Supabase environment variables",
+      status: 500,
+    };
+  }
+
+  const authClient = createClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+  const { data, error } = await authClient.auth.getUser(token);
+  if (error || !data.user) {
+    return { error: "Invalid access token", status: 401 };
+  }
+
+  return { userId: data.user.id };
 }
 
 function ringBounds(ring: unknown): Bbox | null {
@@ -119,11 +166,20 @@ function filterGeometryByBbox(
 
 Deno.serve(async (req) => {
   try {
+    if (req.method !== "GET") {
+      return json({ error: "Method not allowed" }, { status: 405 });
+    }
+
     if (!SUPABASE_URL || !SUPABASE_ANON || !SUPABASE_SERVICE_ROLE_KEY) {
       return json(
         { error: "Missing required Supabase environment variables" },
         { status: 500 },
       );
+    }
+
+    const auth = await requireAuthenticatedUser(req);
+    if ("error" in auth) {
+      return json({ error: auth.error }, { status: auth.status });
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -143,8 +199,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    const srid = parseInt(params.get("srid") || "4326", 10);
-    const limit = Math.min(parseInt(params.get("limit") || "1000", 10), 5000);
+    const srid = parseBoundedInt(params.get("srid"), 4326, 4326, 4326);
+    if (srid === "invalid") {
+      return json({ error: "srid must be 4326" }, { status: 400 });
+    }
+
+    const limit = parseBoundedInt(params.get("limit"), 1000, 1, 1000);
+    if (limit === "invalid") {
+      return json(
+        { error: "limit must be an integer between 1 and 1000" },
+        { status: 400 },
+      );
+    }
     let rpcArgs: TerritoryRpcArgs = {
       in_srid: srid,
       in_limit: limit,
