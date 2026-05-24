@@ -1,4 +1,4 @@
-package com.example.runner_flutter
+package com.runnerio.app
 
 import android.content.BroadcastReceiver
 import android.content.Context

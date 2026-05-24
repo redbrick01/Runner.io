@@ -1,4 +1,4 @@
-package com.example.runner_flutter
+package com.runnerio.app
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -440,14 +440,14 @@ class RunLockScreenService : Service() {
     }
 
     companion object {
-        const val ACTION_START = "com.example.runner_flutter.run.START"
-        const val ACTION_UPDATE = "com.example.runner_flutter.run.UPDATE"
-        const val ACTION_STOP = "com.example.runner_flutter.run.STOP"
-        const val ACTION_BACKGROUND_TRACKING_START = "com.example.runner_flutter.run.BACKGROUND_START"
-        const val ACTION_BACKGROUND_TRACKING_STOP = "com.example.runner_flutter.run.BACKGROUND_STOP"
-        const val ACTION_ANNOUNCE_SPLIT = "com.example.runner_flutter.run.ANNOUNCE_SPLIT"
-        const val ACTION_HANDLE_NOTIFICATION = "com.example.runner_flutter.run.HANDLE_NOTIFICATION"
-        const val ACTION_NOTIFICATION_EVENT = "com.example.runner_flutter.run.NOTIFICATION_EVENT"
+        const val ACTION_START = "com.runnerio.app.run.START"
+        const val ACTION_UPDATE = "com.runnerio.app.run.UPDATE"
+        const val ACTION_STOP = "com.runnerio.app.run.STOP"
+        const val ACTION_BACKGROUND_TRACKING_START = "com.runnerio.app.run.BACKGROUND_START"
+        const val ACTION_BACKGROUND_TRACKING_STOP = "com.runnerio.app.run.BACKGROUND_STOP"
+        const val ACTION_ANNOUNCE_SPLIT = "com.runnerio.app.run.ANNOUNCE_SPLIT"
+        const val ACTION_HANDLE_NOTIFICATION = "com.runnerio.app.run.HANDLE_NOTIFICATION"
+        const val ACTION_NOTIFICATION_EVENT = "com.runnerio.app.run.NOTIFICATION_EVENT"
 
         const val EXTRA_RUN_ID = "runId"
         const val EXTRA_TITLE = "title"
