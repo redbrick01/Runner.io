@@ -30,3 +30,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/badges/generated/runner_badges_board.png
+    - assets/badges/generated/icons/
+    - assets/badges/generated/tiles/

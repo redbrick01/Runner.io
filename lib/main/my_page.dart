@@ -6,8 +6,11 @@ import 'package:flutter_tts/flutter_tts.dart';
 
 import '../app_colors.dart';
 import '../login/login_page.dart';
+import '../services/achievement_service.dart';
 import '../services/auth_service.dart';
+import '../services/run_history_service.dart';
 import '../services/user_profile_store.dart';
+import 'achievement_page.dart';
 import 'point_history_page.dart';
 import 'profile_edit_page.dart';
 import 'run_history_page.dart';
@@ -28,6 +31,7 @@ class _MyPageState extends State<MyPage> {
   bool _isLoading = true;
   bool _isLoggingOut = false;
   bool _isTestingTts = false;
+  List<Achievement> _representativeBadges = const [];
   final FlutterTts _testTts = FlutterTts();
 
   @override
@@ -37,10 +41,26 @@ class _MyPageState extends State<MyPage> {
   }
 
   Future<void> _loadProfile() async {
+    UserProfileSnapshot? snapshot;
     try {
-      await UserProfileStore.instance.fetch(force: true);
+      snapshot = await UserProfileStore.instance.fetch(force: true);
     } catch (_) {
       // Ignore and show cached/default values.
+      snapshot = UserProfileStore.instance.current;
+    }
+
+    try {
+      final entries = await RunHistoryService.instance.fetchAllRunHistory();
+      final achievements = const AchievementService().buildAchievements(
+        entries: entries,
+        profile: snapshot,
+      );
+      _representativeBadges = achievements
+          .where((item) => item.isAchieved)
+          .take(3)
+          .toList(growable: false);
+    } catch (_) {
+      _representativeBadges = const [];
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -245,6 +265,10 @@ class _MyPageState extends State<MyPage> {
                             ),
                           ],
                         ),
+                        if (_representativeBadges.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          _RepresentativeBadges(badges: _representativeBadges),
+                        ],
                       ],
                     ),
                   ),
@@ -264,6 +288,19 @@ class _MyPageState extends State<MyPage> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const StatisticsPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  _MyMenuTile(
+                    icon: Icons.emoji_events_rounded,
+                    title: '배지/업적',
+                    subtitle: '달성한 배지와 다음 목표 보기',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AchievementPage(),
                         ),
                       );
                     },
@@ -400,6 +437,66 @@ class _MyMetric extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RepresentativeBadges extends StatelessWidget {
+  const _RepresentativeBadges({required this.badges});
+
+  final List<Achievement> badges;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '대표 배지',
+          style: TextStyle(
+            color: AppColors.secondaryText,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: badges
+              .map((badge) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Tooltip(
+                    message: badge.title,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.asset(
+                        'assets/badges/generated/icons/${badge.iconType}.png',
+                        width: 42,
+                        height: 42,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: AppColors.primarySoft,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.emoji_events_rounded,
+                              color: AppColors.primary,
+                              size: 22,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              })
+              .toList(growable: false),
+        ),
+      ],
     );
   }
 }

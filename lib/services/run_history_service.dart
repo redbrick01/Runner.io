@@ -44,16 +44,52 @@ class RunHistoryService {
 
   static final RunHistoryService instance = RunHistoryService._();
 
-  Future<List<RunHistoryEntry>> fetchRunHistory({int limit = 50}) async {
+  Future<List<RunHistoryEntry>> fetchRunHistory({
+    int limit = 50,
+    int offset = 0,
+  }) async {
     final decoded = await SupabaseApi.getFunctionJson(
       'run-history',
-      queryParameters: {'limit': limit},
+      queryParameters: {'limit': limit, 'offset': offset},
     );
 
+    return _parseEntries(decoded);
+  }
+
+  Future<List<RunHistoryEntry>> fetchAllRunHistory({
+    int pageSize = 100,
+    int maxPages = 20,
+  }) async {
+    final entries = <RunHistoryEntry>[];
+    var offset = 0;
+    final effectivePageSize = pageSize.clamp(1, 100);
+
+    for (var page = 0; page < maxPages; page++) {
+      final decoded = await SupabaseApi.getFunctionJson(
+        'run-history',
+        queryParameters: {'limit': effectivePageSize, 'offset': offset},
+      );
+      final pageEntries = _parseEntries(decoded);
+      entries.addAll(pageEntries);
+
+      final paging = decoded is Map<String, dynamic> ? decoded['paging'] : null;
+      final hasMore = paging is Map && paging['has_more'] == true;
+      if (!hasMore || pageEntries.isEmpty) {
+        break;
+      }
+      offset += pageEntries.length;
+    }
+
+    return entries;
+  }
+
+  List<RunHistoryEntry> _parseEntries(dynamic decoded) {
     if (decoded is List) {
       return decoded
           .whereType<Map>()
-          .map((item) => RunHistoryEntry.fromMap(Map<String, dynamic>.from(item)))
+          .map(
+            (item) => RunHistoryEntry.fromMap(Map<String, dynamic>.from(item)),
+          )
           .toList(growable: false);
     }
 
@@ -62,7 +98,10 @@ class RunHistoryService {
       if (items is List) {
         return items
             .whereType<Map>()
-            .map((item) => RunHistoryEntry.fromMap(Map<String, dynamic>.from(item)))
+            .map(
+              (item) =>
+                  RunHistoryEntry.fromMap(Map<String, dynamic>.from(item)),
+            )
             .toList(growable: false);
       }
     }

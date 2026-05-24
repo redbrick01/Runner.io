@@ -13,6 +13,8 @@
 | `final_midterm_report_en.txt` | 영문 번역본을 텍스트로 확인하기 위한 파일 |
 | `PROJECT_STRUCTURE.md` | 실제 저장소 폴더 구조, 앱/백엔드/네이티브 구성, 주요 데이터 흐름 설명 |
 | `PRE_GIT_CHECKLIST.md` | GitHub 공개 전 제외 파일, 민감 정보, 검증 명령 체크리스트 |
+| `FEATURE_COMPLETION_DOCUMENTATION_GUIDELINE.md` | 기능 개발 완료 후 변경 기록, 테스트 결과, 구조 문서, README 갱신을 정규화한 문서화 가이드 |
+| `BUGFIX_DOCUMENTATION_GUIDELINE.md` | 오류 수정 완료 후 재현 절차, 원인 분석, 수정 범위, 검증 결과를 정규화한 문서화 가이드 |
 | `test_plan_and_results.md` | 테스트 계획, 자동/수동 검증 항목, E2E 테스트 결과 정리 |
 | `feature_update_running_analysis.md` | 분석 화면 추가, 하단 바 역할 변경, iOS release 서명 보정 변경 기록 |
 | `error_reports/dashboard_resume_error_report.md` | 앱 백그라운드 복귀 후 메인 대시보드 데이터 미표시 이슈의 원인 분석, 수정 내용, 검증 결과 정리 |
@@ -47,6 +49,12 @@
   - 수정 파일, 검증 결과, 실기기 테스트 계획 기록
 - `PRE_GIT_CHECKLIST.md`
   - 공개 저장소 업로드 전 API key, build 산출물, 생성 파일 관리 기준 정리
+- `FEATURE_COMPLETION_DOCUMENTATION_GUIDELINE.md`
+  - 기능 개발 완료 후 변경 기록 문서, 테스트 결과, 구조 문서, README 갱신 기준 정리
+  - 기능 완료 체크리스트와 테스트 결과 기록 양식 제공
+- `BUGFIX_DOCUMENTATION_GUIDELINE.md`
+  - 오류 수정 완료 후 이슈 요약, 재현 절차, 원인 분석, 수정 내용, 검증 결과 기록 기준 정리
+  - 에러 리포트 표준 템플릿과 재발 방지 체크리스트 제공
 
 ## 동작 흐름
 
@@ -60,6 +68,8 @@ README.md
 -> docs/feature_update_running_analysis.md
 -> docs/error_reports/dashboard_resume_error_report.md
 -> docs/error_reports/ios_locked_split_tts_issue_report.md
+-> docs/FEATURE_COMPLETION_DOCUMENTATION_GUIDELINE.md
+-> docs/BUGFIX_DOCUMENTATION_GUIDELINE.md
 -> docs/PRE_GIT_CHECKLIST.md
 -> 중간보고서 docx/txt
 ```
@@ -80,6 +90,10 @@ error_reports/dashboard_resume_error_report.md
 -> 앱 복귀 대시보드 이슈 원인과 수정/검증 결과 정리
 error_reports/ios_locked_split_tts_issue_report.md
 -> iOS 잠금 상태 페이스 TTS 이슈 원인과 수정/검증 계획 정리
+BUGFIX_DOCUMENTATION_GUIDELINE.md
+-> 오류 수정 완료 후 에러 리포트와 검증 결과 작성 기준 제공
+FEATURE_COMPLETION_DOCUMENTATION_GUIDELINE.md
+-> 기능 개발 완료 후 변경 기록과 문서 갱신 기준 제공
 PRE_GIT_CHECKLIST.md
 -> 공개 전 정리 기준 제공
 ```
