@@ -347,6 +347,15 @@ DB 구조는 `supabase/migrations/20260523142500_initial_remote_schema.sql` 및 
 - Android 실제 기기에서 foreground service, 알림 action, 백그라운드 위치 추적 확인
 - iOS 실제 기기에서 Live Activity, Dynamic Island, 위치 권한 흐름 확인
 
+### 트러블슈팅
+
+| 증상 | 확인할 항목 |
+|---|---|
+| 앱 시작 시 Supabase 설정 오류 화면이 표시됨 | `flutter run` 명령에 `--dart-define=SUPABASE_URL=...`와 `--dart-define=SUPABASE_ANON_KEY=...`가 포함되어 있는지 확인 |
+| Android 지도 타일이 비어 있거나 Google Maps 인증 오류가 표시됨 | `android/local.properties` 또는 환경변수 `GOOGLE_MAPS_API_KEY`가 설정되어 있고 Android 앱 ID `com.runnerio.app` 제한에 포함되어 있는지 확인 |
+| iOS 지도 초기화가 실패함 | iOS 빌드 설정의 `GOOGLE_MAPS_API_KEY` 값과 bundle identifier 제한을 확인 |
+| 위치가 표시되지 않음 | 기기 위치 서비스, 앱 위치 권한, 에뮬레이터/시뮬레이터 위치 mock 설정을 확인 |
+
 ## 11. 프로젝트 진행 현황
 
 ### 구현 완료로 확인되는 기능
