@@ -28,7 +28,7 @@ void main() {
         expect(find.text('점령 면적'), findsOneWidget);
         expect(find.text('랭킹'), findsOneWidget);
         expect(find.text('포인트'), findsOneWidget);
-        expect(find.text('홈'), findsOneWidget);
+        expect(find.text('분석'), findsOneWidget);
         expect(find.text('통계'), findsOneWidget);
         expect(find.text('마이'), findsOneWidget);
       },

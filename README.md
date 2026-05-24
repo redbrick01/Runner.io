@@ -38,6 +38,7 @@ GPS 러닝 기록을 기반으로 이동 경로, 운동 지표, 포인트, 랭�
 | 러닝 세션 | 시작, 카운트다운, 일시정지, 재개, 종료, 취소, 거리/속도/페이스/고도/split 계산 | `lib/main/run_session_engine.dart` |
 | 결과 리포트 | 거리, 시간, 평균 페이스, 포인트, 칼로리, 상승고도, 점령 면적, 지도 경로, split 표시 | `lib/main/run_result_page.dart` |
 | 러닝 기록 | 저장된 러닝 기록 조회 및 상세 결과 화면 이동 | `lib/main/run_history_page.dart`, `supabase/functions/run-history/` |
+| 분석 | 주간/월간/전체 요약, 최근 7일 거리 그래프, 이전 기간 대비 거리 변화, 개인 최고 기록 표시 | `lib/main/statistics_page.dart`, `lib/services/statistics_service.dart` |
 | 포인트 이력 | 기간별 포인트 변동 내역 조회, 러닝 결과와 연결 | `lib/main/point_history_page.dart`, `supabase/functions/point-history/` |
 | 랭킹 | 일/주/월/년/전체 기준 랭킹, 내 주변 순위 표시 | `lib/main/ranking_page.dart`, `supabase/functions/profile-leaderboard/` |
 | 영토 | PostGIS 기반 영토 geometry 저장/병합/차감, 지도 표시용 GeoJSON 조회 | `supabase/migrations/`, `supabase/functions/territory-geojson/` |
@@ -52,7 +53,7 @@ GPS 러닝 기록을 기반으로 이동 경로, 운동 지표, 포인트, 랭�
 3. 사용자가 러닝을 시작하면 위치 샘플이 누적되고 `RunSessionEngine`이 거리, 페이스, 속도, 고도, split을 계산합니다.
 4. 러닝 종료 시 클라이언트가 `create-run` Edge Function으로 결과를 저장합니다.
 5. Supabase DB trigger/RPC가 러닝 기록, 포인트 이력, 일별 포인트, 영토 정보를 갱신합니다.
-6. 사용자는 결과 리포트, 기록, 포인트 이력, 랭킹, 영토 상세에서 저장된 결과를 확인합니다.
+6. 사용자는 결과 리포트, 기록, 분석, 포인트 이력, 랭킹, 영토 상세에서 저장된 결과와 성장 추이를 확인합니다.
 
 ## 3. 기술 스택
 
@@ -254,12 +255,13 @@ flutter test integration_test/runner_api_e2e_test.dart \
 5. Edge Function이 `runs`, `run_splits`에 저장하고 DB trigger가 포인트와 영토를 갱신합니다.
 6. 앱은 `RunResultPage`에서 결과를 표시합니다.
 
-### 기록/포인트/랭킹 확인
+### 기록/분석/포인트/랭킹 확인
 
 1. 기록 화면은 `run-history` 함수로 현재 사용자의 러닝 기록과 split을 조회합니다.
-2. 포인트 화면은 `point-history` 함수로 기간별 포인트 이벤트를 조회합니다.
-3. 랭킹 화면은 `profile-leaderboard` 함수로 기간별 상위 랭킹 또는 내 주변 순위를 조회합니다.
-4. 지도 화면은 `territory-geojson` 함수로 지도 bbox 안의 영토 GeoJSON을 조회합니다.
+2. 분석 화면은 `RunHistoryEntry` 목록을 클라이언트에서 집계해 주간/월간/전체 요약, 최근 7일 거리, 개인 최고 기록을 표시합니다.
+3. 포인트 화면은 `point-history` 함수로 기간별 포인트 이벤트를 조회합니다.
+4. 랭킹 화면은 `profile-leaderboard` 함수로 기간별 상위 랭킹 또는 내 주변 순위를 조회합니다.
+5. 지도 화면은 `territory-geojson` 함수로 지도 bbox 안의 영토 GeoJSON을 조회합니다.
 
 ## 8. 데이터베이스 구조
 
@@ -311,6 +313,7 @@ DB 구조는 `supabase/migrations/20260523142500_initial_remote_schema.sql` 및 
 | 위치 | 검증 내용 |
 |---|---|
 | `test/run_session_engine_test.dart` | 위치 샘플 처리, 거리 계산, 일시정지/재개, 비정상 샘플 거부 |
+| `test/statistics_service_test.dart` | 기간별 통계 집계, 평균 페이스, 최근 7일 거리, 개인 최고 기록 계산 |
 | `test/*_page_test.dart` | 로그인, 회원가입, 지도, 결과, 기록, 포인트, 랭킹, 프로필 화면의 기본 렌더링/상태 |
 | `integration_test/runner_api_e2e_test.dart` | Supabase Auth, `create-run`, `run-history`, `point-history`, `user_point_daily`, `profile-leaderboard` 연동 |
 
@@ -321,6 +324,7 @@ DB 구조는 `supabase/migrations/20260523142500_initial_remote_schema.sql` 및 
 - 러닝 시작, 일시정지, 재개, 종료 후 결과 저장 확인
 - 결과 화면에서 거리, 시간, 페이스, 포인트, split, 지도 경로 확인
 - 기록 화면에서 저장된 러닝을 다시 열 수 있는지 확인
+- 분석 화면에서 주간/월간/전체 요약, 최근 7일 그래프, 개인 최고 기록이 표시되는지 확인
 - 포인트 이력과 랭킹이 저장 결과를 반영하는지 확인
 - Android 실제 기기에서 foreground service, 알림 action, 백그라운드 위치 추적 확인
 - iOS 실제 기기에서 Live Activity, Dynamic Island, 위치 권한 흐름 확인
@@ -335,6 +339,7 @@ DB 구조는 `supabase/migrations/20260523142500_initial_remote_schema.sql` 및 
 - 러닝 세션 상태 관리 및 거리/페이스/split/고도 계산
 - 러닝 결과 저장 및 결과 리포트 표시
 - 러닝 기록, 포인트 이력, 랭킹, 프로필 수정 화면
+- 러닝 기록 기반 분석 화면과 개인 최고 기록/최근 거리 그래프
 - Supabase Edge Functions를 통한 API 계층
 - PostgreSQL/PostGIS 기반 러닝/영토/포인트 데이터 구조
 - Android foreground service 및 iOS Live Activity 관련 네이티브 코드
@@ -349,7 +354,7 @@ DB 구조는 `supabase/migrations/20260523142500_initial_remote_schema.sql` 및 
 
 ### 향후 개선 예정 또는 계획 단계 기능
 
-- AI Chatbot API 연동을 통한 러닝 데이터 분석 및 개인화 피드백
+- AI Chatbot API 연동을 통한 러닝 데이터 해석 및 개인화 피드백
 - 사용자 피드백 수집을 위한 최종 데모 배포
 - 서비스 계층 단위 테스트 확대
 - API naming/response schema 표준화

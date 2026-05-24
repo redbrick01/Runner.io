@@ -17,6 +17,7 @@ import 'my_page.dart';
 import 'run_history_page.dart';
 import 'run_session_engine.dart';
 import 'run_result_page.dart';
+import 'statistics_page.dart';
 import 'territory_detail_page.dart';
 
 class RunningMapPage extends StatefulWidget {
@@ -2256,7 +2257,12 @@ class _RunningMapPageState extends State<RunningMapPage>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildNavItem(Icons.home_rounded, "홈", true, null),
+            _buildNavItem(Icons.insights_rounded, "분석", false, () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const StatisticsPage()),
+              );
+            }),
             _buildNavItem(Icons.bar_chart_rounded, "통계", false, () {
               Navigator.push(
                 context,

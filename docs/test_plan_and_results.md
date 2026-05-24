@@ -504,7 +504,33 @@ All tests passed! 1 test
 
 상태: 성공
 
-### 8.7 PointHistoryPage
+### 8.7 StatisticsService / StatisticsPage
+
+대상 파일:
+
+```text
+test/statistics_service_test.dart
+test/statistics_page_test.dart
+```
+
+검증 내용:
+
+- 빈 기록에서 0 요약과 빈 개인 최고 기록 표시
+- 주간/월간/전체 기간 필터와 총 거리, 총 시간, 횟수, 포인트 집계
+- 총 거리/총 시간 기준 평균 페이스 계산
+- 최근 7일 날짜별 거리 합산
+- 최장 거리, 최고 페이스, 최대 점령 면적 개인 최고 기록 계산
+- 분석 화면 로딩, 빈 상태, 요약 카드, 기간 전환 렌더링
+
+결과:
+
+```text
+All tests passed! 7 tests
+```
+
+상태: 성공
+
+### 8.8 PointHistoryPage
 
 대상 파일:
 
@@ -560,7 +586,7 @@ flutter test
 결과:
 
 ```text
-All tests passed! 29 tests
+All tests passed! 38 tests
 ```
 
 실행 명령:
@@ -630,7 +656,8 @@ Unit / Widget / API E2E 주요 테스트 통과
 검증 필요:
 
 - 로그인 → 지도 화면 진입
-- 지도 → 통계 화면 이동
+- 지도 → 분석 화면 이동
+- 지도 → 통계/러닝 기록 화면 이동
 - 지도 → 마이 화면 이동
 - 지도 → 랭킹/포인트 화면 이동
 - 프로필 수정 후 화면 반영
@@ -739,7 +766,7 @@ flutter test
 
 ```text
 No issues found
-All tests passed! 29 tests
+All tests passed! 38 tests
 ```
 
 ### 14.2 iOS 실제 기기 실행
@@ -756,6 +783,34 @@ All tests passed! 29 tests
 - Supabase 초기화 성공 확인
 - 지도 화면 진입 후 `user-ranking`, `territory-geojson`, `profile-leaderboard` API 응답 확인
 - Google Maps API key 미설정으로 인한 `GMSServicesException` 재발 없음
+
+### 14.3 iOS release 설치 서명 검증
+
+문제:
+
+- `flutter run --release`에서 Xcode build는 성공했지만 실제 iPhone 설치 단계에서 실패했다.
+- 상세 오류는 `Runner.app/Frameworks/objective_c.framework`의 invalid signature였다.
+
+원인:
+
+- Flutter native assets로 포함된 `objective_c.framework`가 ad-hoc 서명 상태로 앱 번들에 포함되었다.
+- 기기용 release 산출물에 `x86_64` slice가 함께 남아 있어 iPhone 코드 서명 검증에서 거부되었다.
+
+수정:
+
+- `ios/Runner.xcodeproj/project.pbxproj`에 `Sign Flutter Native Assets` build phase를 추가했다.
+- 해당 단계는 `objective_c.framework`가 존재할 때 `x86_64` slice를 제거하고 `EXPANDED_CODE_SIGN_IDENTITY`로 재서명한다.
+
+검증:
+
+```text
+flutter build ios --release
+xcrun devicectl device install app --device 9C5F1A9F-C922-54FB-9190-CAE01A916CA5 build/ios/iphoneos/Runner.app
+xcrun devicectl device process launch --device 9C5F1A9F-C922-54FB-9190-CAE01A916CA5 com.example.runnerFlutter
+flutter run --release -d 00008150-001225DC1186401C
+```
+
+상태: 성공
 
 ## 15. 결론
 

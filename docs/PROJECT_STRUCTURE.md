@@ -54,6 +54,7 @@ lib/
 | `run_session_engine.dart` | 위치 샘플 필터링, 거리/속도/페이스/split/고도/일시정지 상태 계산 |
 | `run_result_page.dart` | 러닝 종료 결과, 지도 경로, split, 고도 그래프 표시 |
 | `run_history_page.dart` | 기간별 러닝 기록 조회와 요약 |
+| `statistics_page.dart` | 러닝 기록 기반 분석 화면, 기간 요약, 최근 7일 거리 그래프, 개인 최고 기록 표시 |
 | `point_history_page.dart` | 포인트 획득/차감 이력 조회, 기간 이동 |
 | `ranking_page.dart` | 일/주/월/년/전체 랭킹과 내 순위 표시 |
 | `territory_detail_page.dart` | 특정 영토 상세, 기여자, 타임라인, 미니맵 |
@@ -70,6 +71,7 @@ Edge Function과 Supabase Auth 호출을 화면에서 분리한 계층이다.
 | `auth_service.dart` | 로그인, 회원가입, 로그아웃 |
 | `run_service.dart` | `create-run` 호출 |
 | `run_history_service.dart` | `run-history` 호출과 `RunHistoryEntry` 변환 |
+| `statistics_service.dart` | `RunHistoryEntry` 목록을 기간별 요약, 최근 7일 거리, 개인 최고 기록으로 집계 |
 | `point_history_service.dart` | `point-history` 호출 |
 | `ranking_service.dart` | `profile-leaderboard` 호출 |
 | `profile_service.dart` | 프로필 조회/순위 조회/수정 |

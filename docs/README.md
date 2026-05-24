@@ -14,6 +14,7 @@
 | `PROJECT_STRUCTURE.md` | 실제 저장소 폴더 구조, 앱/백엔드/네이티브 구성, 주요 데이터 흐름 설명 |
 | `PRE_GIT_CHECKLIST.md` | GitHub 공개 전 제외 파일, 민감 정보, 검증 명령 체크리스트 |
 | `test_plan_and_results.md` | 테스트 계획, 자동/수동 검증 항목, E2E 테스트 결과 정리 |
+| `feature_update_running_analysis.md` | 분석 화면 추가, 하단 바 역할 변경, iOS release 서명 보정 변경 기록 |
 | `error_reports/dashboard_resume_error_report.md` | 앱 백그라운드 복귀 후 메인 대시보드 데이터 미표시 이슈의 원인 분석, 수정 내용, 검증 결과 정리 |
 | `error_reports/ios_locked_split_tts_issue_report.md` | iOS 화면 잠금 중 킬로미터당 페이스 TTS 미출력 이슈의 원인 분석, 수정 내용, 검증 계획 정리 |
 
@@ -32,6 +33,10 @@
   - Flutter 앱, Supabase backend, Android/iOS native 연동 설명
 - `test_plan_and_results.md`
   - 기능 테스트, 경계 상황, 회귀 검증 방식과 실행 결과 정리
+- `feature_update_running_analysis.md`
+  - 분석 화면과 기존 통계/러닝 기록 화면의 역할 분리 정리
+  - `statistics_service.dart`, `statistics_page.dart` 추가 내용 기록
+  - iOS release 설치 실패 원인과 `objective_c.framework` 재서명 build phase 기록
 - `error_reports/dashboard_resume_error_report.md`
   - 메인 대시보드 점령 면적/랭킹/포인트 데이터의 로드 흐름 정리
   - 앱 복귀 시 재조회와 프로필 캐시 방어 로직 수정 내역 정리
@@ -52,6 +57,7 @@ README.md
 -> docs/README.md
 -> docs/PROJECT_STRUCTURE.md
 -> docs/test_plan_and_results.md
+-> docs/feature_update_running_analysis.md
 -> docs/error_reports/dashboard_resume_error_report.md
 -> docs/error_reports/ios_locked_split_tts_issue_report.md
 -> docs/PRE_GIT_CHECKLIST.md
@@ -68,6 +74,8 @@ PROJECT_STRUCTURE.md
 -> 실제 코드 구조와 아키텍처 설명
 test_plan_and_results.md
 -> 구현 기능 검증 방법 정리
+feature_update_running_analysis.md
+-> 분석 화면 추가와 iOS release 설치 이슈 수정 기록
 error_reports/dashboard_resume_error_report.md
 -> 앱 복귀 대시보드 이슈 원인과 수정/검증 결과 정리
 error_reports/ios_locked_split_tts_issue_report.md

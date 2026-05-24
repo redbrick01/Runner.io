@@ -11,6 +11,7 @@ import '../services/user_profile_store.dart';
 import 'point_history_page.dart';
 import 'profile_edit_page.dart';
 import 'run_history_page.dart';
+import 'statistics_page.dart';
 import 'territory_detail_page.dart';
 
 class MyPage extends StatefulWidget {
@@ -257,7 +258,20 @@ class _MyPageState extends State<MyPage> {
                   _MyMenuTile(
                     icon: Icons.bar_chart_rounded,
                     title: '러닝 통계',
-                    subtitle: '일/월/년 기록 확인',
+                    subtitle: '주간/월간 요약과 개인 최고 기록',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const StatisticsPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  _MyMenuTile(
+                    icon: Icons.assignment_rounded,
+                    title: '러닝 리포트',
+                    subtitle: '저장된 러닝 기록과 상세 결과 보기',
                     onTap: () {
                       Navigator.push(
                         context,

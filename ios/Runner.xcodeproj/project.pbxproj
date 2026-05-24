@@ -294,6 +294,7 @@
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
+				7C8F8E6B2D2E4A2F90F5B3C1 /* Sign Flutter Native Assets */,
 				4F66EB9353EE9AF0FE8F04A3 /* [CP] Embed Pods Frameworks */,
 				D43D0D93996E38BBFB40AB5B /* [CP] Copy Pods Resources */,
 				63B3C831135CC3AAE3E2C228 /* Embed App Extensions */,
@@ -432,6 +433,21 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		7C8F8E6B2D2E4A2F90F5B3C1 /* Sign Flutter Native Assets */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Sign Flutter Native Assets";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\n\nFRAMEWORK_PATH=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/objective_c.framework\"\nEXECUTABLE_PATH=\"${FRAMEWORK_PATH}/objective_c\"\n\nif [ ! -f \"${EXECUTABLE_PATH}\" ]; then\n  exit 0\nfi\n\nif /usr/bin/lipo -info \"${EXECUTABLE_PATH}\" | /usr/bin/grep -q \"x86_64\"; then\n  /usr/bin/lipo \"${EXECUTABLE_PATH}\" -remove x86_64 -output \"${EXECUTABLE_PATH}.thin\"\n  /bin/mv \"${EXECUTABLE_PATH}.thin\" \"${EXECUTABLE_PATH}\"\nfi\n\nif [ -n \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ] && [ \"${EXPANDED_CODE_SIGN_IDENTITY}\" != \"-\" ]; then\n  /usr/bin/codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --preserve-metadata=identifier,entitlements,flags \"${FRAMEWORK_PATH}\"\nfi\n";
 		};
 		937D7D1EE69A7F389AA7F7BF /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;

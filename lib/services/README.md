@@ -12,6 +12,7 @@
 | `auth_service.dart` | Supabase Auth 로그인, 회원가입, 로그아웃 |
 | `run_service.dart` | `create-run` Edge Function 호출 |
 | `run_history_service.dart` | `run-history` 호출 및 `RunHistoryEntry` 변환 |
+| `statistics_service.dart` | 러닝 기록 목록을 기간별 요약, 평균 페이스, 최근 7일 거리, 개인 최고 기록으로 집계 |
 | `point_history_service.dart` | `point-history` 호출 |
 | `ranking_service.dart` | `profile-leaderboard` 호출, top/context 랭킹 결과 정리 |
 | `profile_service.dart` | `user-ranking`, `profile-leaderboard`, `update-profile` 호출 |
@@ -37,6 +38,7 @@
 - 인증
 - 러닝 저장
 - 러닝 기록 조회
+- 러닝 기록 기반 개인 분석 집계
 - 포인트 이력 조회
 - 기간별 랭킹 조회
 - 사용자 프로필 조회/수정
@@ -46,4 +48,5 @@
 
 - 현재 Supabase URL과 anon key가 코드 상수로 들어 있습니다. anon key는 공개 클라이언트 키 성격이 있지만, 공개 저장소에서는 RLS/도메인 제한/키 관리 정책을 반드시 확인해야 합니다.
 - API 응답 스키마가 바뀌면 서비스 변환 로직과 화면 null/error 처리를 함께 점검해야 합니다.
-- 서비스 계층 단위 테스트 확대는 보고서에서 향후 개선 과제로 언급되어 있습니다.
+- `statistics_service.dart`는 Supabase 호출 없이 순수 집계 로직으로 동작하므로 `test/statistics_service_test.dart`에서 단위 테스트로 검증합니다.
+- 다른 서비스 계층 단위 테스트 확대는 보고서에서 향후 개선 과제로 언급되어 있습니다.
