@@ -5,6 +5,7 @@ import '../design/app_design.dart';
 import '../services/run_ai_report_service.dart';
 import '../services/run_history_service.dart';
 import '../services/statistics_service.dart';
+import '../services/app_formatters.dart';
 
 class StatisticsPage extends StatefulWidget {
   const StatisticsPage({
@@ -558,33 +559,19 @@ class _RecordsSection extends StatelessWidget {
 }
 
 String _formatDistance(double metres) {
-  final km = metres / 1000;
-  return '${km.toStringAsFixed(km >= 10 ? 1 : 2)} km';
+  return AppFormatters.distance(metres);
 }
 
 String _formatDuration(int seconds) {
-  final h = seconds ~/ 3600;
-  final m = (seconds % 3600) ~/ 60;
-  final s = seconds % 60;
-  if (h > 0) {
-    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
-  return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  return AppFormatters.duration(seconds);
 }
 
 String _formatPace(double secondsPerKm) {
-  if (!secondsPerKm.isFinite || secondsPerKm <= 0) return "-'--\"";
-  final totalSeconds = secondsPerKm.round();
-  final minutes = totalSeconds ~/ 60;
-  final seconds = totalSeconds % 60;
-  return "$minutes'${seconds.toString().padLeft(2, '0')}\"";
+  return AppFormatters.pace(secondsPerKm);
 }
 
 String _formatPoint(double point) {
-  if (point == point.roundToDouble()) {
-    return '${point.toInt()} P';
-  }
-  return '${point.toStringAsFixed(1)} P';
+  return AppFormatters.point(point);
 }
 
 String _shortDistance(double metres) {

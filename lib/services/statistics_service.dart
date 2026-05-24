@@ -1,3 +1,4 @@
+import 'app_formatters.dart';
 import 'run_history_service.dart';
 
 enum StatisticsPeriod { week, month, all }
@@ -210,15 +211,17 @@ class StatisticsService {
     return [
       StatisticsRecord(
         label: '최장 거리',
-        value: _formatDistance(longestDistance.distanceMetres),
+        value: AppFormatters.distance(longestDistance.distanceMetres),
       ),
       StatisticsRecord(
         label: '최고 페이스',
-        value: fastest == null ? '-' : _formatPace(_paceForEntry(fastest)),
+        value: fastest == null
+            ? '-'
+            : AppFormatters.pace(_paceForEntry(fastest)),
       ),
       StatisticsRecord(
         label: '최대 점령 면적',
-        value: _formatArea(_areaMetres(largestArea)),
+        value: AppFormatters.area(_areaMetres(largestArea)),
       ),
     ];
   }
@@ -248,25 +251,6 @@ class StatisticsService {
       return currentDistance > 0 ? 1.0 : null;
     }
     return (currentDistance - previousDistance) / previousDistance;
-  }
-
-  String _formatDistance(double metres) {
-    final km = metres / 1000;
-    return '${km.toStringAsFixed(km >= 10 ? 1 : 2)} km';
-  }
-
-  String _formatPace(double secondsPerKm) {
-    if (!secondsPerKm.isFinite || secondsPerKm <= 0) return "-'--\"";
-    final totalSeconds = secondsPerKm.round();
-    final minutes = totalSeconds ~/ 60;
-    final seconds = totalSeconds % 60;
-    return "$minutes'${seconds.toString().padLeft(2, '0')}\"";
-  }
-
-  String _formatArea(double metres) {
-    if (metres <= 0) return '0 km²';
-    final km2 = metres / 1000000;
-    return '${km2.toStringAsFixed(km2 >= 10 ? 1 : 2)} km²';
   }
 }
 
