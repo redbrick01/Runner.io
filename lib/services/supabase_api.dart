@@ -100,10 +100,11 @@ class SupabaseApi {
   static Future<dynamic> postFunctionJson(
     String functionName, {
     required Map<String, dynamic> body,
+    Map<String, dynamic>? queryParameters,
   }) async {
     final session = await waitForSession();
     final response = await http.post(
-      functionUri(functionName),
+      functionUri(functionName, queryParameters: queryParameters),
       headers: headers(includeJsonContentType: true, session: session),
       body: json.encode(body),
     );

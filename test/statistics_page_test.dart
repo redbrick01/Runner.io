@@ -28,6 +28,7 @@ void main() {
       home: StatisticsPage(
         now: DateTime(2026, 5, 24, 12),
         loadEntries: loadEntries,
+        loadLatestAiReport: () async => null,
       ),
     );
   }
@@ -44,6 +45,7 @@ void main() {
 
       expect(find.text('분석'), findsOneWidget);
       expect(find.text('아직 표시할 러닝 기록이 없습니다.'), findsOneWidget);
+      expect(find.text('AI 분석 리포트가 아직 없습니다.'), findsOneWidget);
       expect(find.text('최근 7일 거리'), findsOneWidget);
       expect(find.text('개인 최고 기록'), findsOneWidget);
     });

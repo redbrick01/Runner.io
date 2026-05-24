@@ -2,13 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../app_colors.dart';
 import '../design/app_design.dart';
+import '../services/run_ai_report_service.dart';
 import '../services/run_history_service.dart';
 import '../services/statistics_service.dart';
 
 class StatisticsPage extends StatefulWidget {
-  const StatisticsPage({super.key, this.loadEntries, this.now});
+  const StatisticsPage({
+    super.key,
+    this.loadEntries,
+    this.loadLatestAiReport,
+    this.now,
+  });
 
   final Future<List<RunHistoryEntry>> Function()? loadEntries;
+  final Future<RunAiReport?> Function()? loadLatestAiReport;
   final DateTime? now;
 
   @override
@@ -20,6 +27,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
 
   StatisticsPeriod _period = StatisticsPeriod.week;
   List<RunHistoryEntry> _entries = const [];
+  RunAiReport? _latestAiReport;
+  bool _isAiReportLoading = false;
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -39,6 +48,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
           widget.loadEntries ??
           () => RunHistoryService.instance.fetchRunHistory(limit: 500);
       final entries = await loader();
+      await _loadLatestAiReport();
       if (!mounted) return;
       setState(() {
         _entries = entries;
@@ -50,6 +60,29 @@ class _StatisticsPageState extends State<StatisticsPage> {
         _entries = const [];
         _errorMessage = '통계를 불러오지 못했습니다.';
         _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadLatestAiReport() async {
+    setState(() {
+      _isAiReportLoading = true;
+    });
+    try {
+      final loader =
+          widget.loadLatestAiReport ??
+          () => RunAiReportService.instance.fetchLatestReport();
+      final report = await loader();
+      if (!mounted) return;
+      setState(() {
+        _latestAiReport = report;
+        _isAiReportLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _latestAiReport = null;
+        _isAiReportLoading = false;
       });
     }
   }
@@ -99,6 +132,11 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     )
                   else
                     _SummarySection(summary: summary),
+                  AppSpacing.gap,
+                  _AiReportSection(
+                    report: _latestAiReport,
+                    isLoading: _isAiReportLoading,
+                  ),
                   AppSpacing.gap,
                   _DistanceChart(days: summary.recentDailyDistances),
                   AppSpacing.gap,
@@ -235,6 +273,168 @@ class _InsightCard extends StatelessWidget {
       return '$label 지난 기간보다 ${(ratio * 100).round()}% 더 달렸어요.';
     }
     return '$label 지난 기간보다 ${(-ratio * 100).round()}% 적게 달렸어요.';
+  }
+}
+
+class _AiReportSection extends StatelessWidget {
+  const _AiReportSection({required this.report, required this.isLoading});
+
+  final RunAiReport? report;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentReport = report;
+    if (isLoading && currentReport == null) {
+      return const AppSurface(
+        child: Row(
+          children: [
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.4),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'AI 분석을 불러오는 중입니다.',
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (currentReport == null) {
+      return const AppNoticeCard(
+        icon: Icons.auto_awesome_rounded,
+        title: 'AI 분석 리포트가 아직 없습니다.',
+        subtitle: '러닝을 저장하면 비슷한 과거 기록과 비교해 코칭을 보여줍니다.',
+        margin: EdgeInsets.zero,
+      );
+    }
+
+    return AppSurface(
+      color: AppColors.primarySoft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.surface.withValues(alpha: 0.75),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: AppColors.primary,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  '최근 AI 분석',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              if (currentReport.similarRunCount > 0)
+                Text(
+                  '유사 ${currentReport.similarRunCount}개',
+                  style: const TextStyle(
+                    color: AppColors.secondaryText,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            currentReport.summary,
+            style: const TextStyle(
+              color: AppColors.text,
+              fontSize: 15,
+              height: 1.35,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _AiReportLine(
+            icon: Icons.flag_rounded,
+            label: '다음 목표',
+            value: currentReport.nextGoalLabel,
+          ),
+          const SizedBox(height: 8),
+          _AiReportLine(
+            icon: Icons.chat_bubble_rounded,
+            label: '코칭',
+            value: currentReport.coachingMessage,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AiReportLine extends StatelessWidget {
+  const _AiReportLine({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppColors.primary, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 13,
+                  height: 1.32,
+                  fontWeight: FontWeight.w700,
+                ),
+                children: [
+                  TextSpan(
+                    text: '$label  ',
+                    style: const TextStyle(color: AppColors.secondaryText),
+                  ),
+                  TextSpan(text: value),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

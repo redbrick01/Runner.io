@@ -5,14 +5,22 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../app_colors.dart';
 import '../design/app_design.dart';
+import '../services/run_ai_report_service.dart';
 import 'running_map_page.dart';
 import 'run_session_engine.dart';
 
 class RunResultPage extends StatefulWidget {
   final Map<String, dynamic> runData;
+  final Future<RunAiReport?> Function(int runId)? loadAiReport;
+  final Future<RunAiReport?> Function(int runId)? generateAiReport;
   static const Color _metricValueColor = Color(0xFF2C2C2E);
 
-  const RunResultPage({super.key, required this.runData});
+  const RunResultPage({
+    super.key,
+    required this.runData,
+    this.loadAiReport,
+    this.generateAiReport,
+  });
 
   @override
   State<RunResultPage> createState() => _RunResultPageState();
@@ -22,11 +30,61 @@ class _RunResultPageState extends State<RunResultPage> {
   RunRoutePoint? _selectedAltitudePoint;
   BitmapDescriptor? _selectedAltitudeMarkerIcon;
   bool _isAltitudeExpanded = false;
+  RunAiReport? _aiReport;
+  bool _isAiReportLoading = false;
+  String? _aiReportError;
 
   @override
   void initState() {
     super.initState();
     _prepareSelectedAltitudeMarkerIcon();
+    _fetchExistingAiReport();
+  }
+
+  Future<void> _fetchExistingAiReport() async {
+    final runId = _asInt(widget.runData['id']);
+    if (runId <= 0) return;
+
+    try {
+      final loader =
+          widget.loadAiReport ??
+          (int id) => RunAiReportService.instance.fetchRunReport(id);
+      final report = await loader(runId);
+      if (!mounted) return;
+      setState(() {
+        _aiReport = report;
+      });
+    } catch (_) {
+      // 기존 리포트 조회 실패는 저장 결과 확인을 방해하지 않는다.
+    }
+  }
+
+  Future<void> _generateAiReport() async {
+    final runId = _asInt(widget.runData['id']);
+    if (runId <= 0 || _isAiReportLoading) return;
+
+    setState(() {
+      _isAiReportLoading = true;
+      _aiReportError = null;
+    });
+
+    try {
+      final generator =
+          widget.generateAiReport ??
+          (int id) => RunAiReportService.instance.generateRunReport(id);
+      final report = await generator(runId);
+      if (!mounted) return;
+      setState(() {
+        _aiReport = report;
+        _isAiReportLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _aiReportError = 'AI 분석을 생성하지 못했습니다.';
+        _isAiReportLoading = false;
+      });
+    }
   }
 
   Future<void> _prepareSelectedAltitudeMarkerIcon() async {
@@ -417,6 +475,10 @@ class _RunResultPageState extends State<RunResultPage> {
                     const SizedBox(height: 12),
                     _buildSplitSection(splits),
                   ],
+                  if (_shouldShowAiReportSection) ...[
+                    const SizedBox(height: 12),
+                    _buildAiReportSection(),
+                  ],
                   const SizedBox(height: 12),
                   _buildWideMetricCard(
                     icon: Icons.crop_square_rounded,
@@ -489,6 +551,258 @@ class _RunResultPageState extends State<RunResultPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  bool get _shouldShowAiReportSection =>
+      _asInt(widget.runData['id']) > 0 ||
+      _isAiReportLoading ||
+      _aiReport != null ||
+      _aiReportError != null;
+
+  Widget _buildAiReportSection() {
+    final report = _aiReport;
+    if (_isAiReportLoading && report == null) {
+      return const AppSurface(
+        color: AppColors.primarySoft,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'AI 분석을 생성 중입니다.',
+                    style: TextStyle(
+                      color: AppColors.text,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12),
+            Text(
+              '현재 기록과 비슷한 과거 러닝을 찾고 코칭 문구를 만드는 중이에요. 잠시만 기다려 주세요.',
+              style: TextStyle(
+                color: AppColors.secondaryText,
+                fontSize: 13,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_aiReportError != null || report == null) {
+      return AppSurface(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySoft,
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: AppColors.primary,
+                    size: 21,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _aiReportError ?? 'AI 러닝 분석',
+                    style: const TextStyle(
+                      color: AppColors.text,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _aiReportError == null
+                  ? '현재 기록과 유사한 과거 러닝을 비교해 AI 요약, 개선점, 다음 목표, 코칭 문구를 생성합니다.'
+                  : '네트워크나 서버 설정을 확인한 뒤 다시 시도해 주세요.',
+              style: const TextStyle(
+                color: AppColors.secondaryText,
+                fontSize: 13,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: _isAiReportLoading ? null : _generateAiReport,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.auto_awesome_rounded, size: 19),
+                label: Text(
+                  _aiReportError == null ? 'AI 분석하기' : 'AI 분석 다시 시도',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return AppSurface(
+      color: AppColors.primarySoft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.surface.withValues(alpha: 0.75),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: AppColors.primary,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'AI 러닝 분석',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              if (report.similarRunCount > 0)
+                Text(
+                  '유사 ${report.similarRunCount}개',
+                  style: const TextStyle(
+                    color: AppColors.secondaryText,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            report.summary,
+            style: const TextStyle(
+              color: AppColors.text,
+              fontSize: 15,
+              height: 1.35,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (report.improvements.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const Text('개선점', style: AppTextStyles.label),
+            const SizedBox(height: 6),
+            ...report.improvements.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 5),
+                child: Text(
+                  '- $item',
+                  style: const TextStyle(
+                    color: AppColors.text,
+                    fontSize: 13,
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          _buildAiReportPill(
+            icon: Icons.flag_rounded,
+            label: '다음 목표',
+            value: report.nextGoalLabel,
+          ),
+          const SizedBox(height: 8),
+          _buildAiReportPill(
+            icon: Icons.chat_bubble_rounded,
+            label: '코칭',
+            value: report.coachingMessage,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAiReportPill({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppColors.primary, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 13,
+                  height: 1.32,
+                  fontWeight: FontWeight.w700,
+                ),
+                children: [
+                  TextSpan(
+                    text: '$label  ',
+                    style: const TextStyle(color: AppColors.secondaryText),
+                  ),
+                  TextSpan(text: value),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

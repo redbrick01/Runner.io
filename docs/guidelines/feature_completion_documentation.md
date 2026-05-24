@@ -27,7 +27,7 @@
 
 ```text
 docs/feature_update_achievements.md
-docs/feature_update_running_analysis.md
+docs/features/running_analysis/feature_update.md
 ```
 
 문서에는 다음 항목을 포함한다.

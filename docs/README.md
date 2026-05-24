@@ -2,122 +2,95 @@
 
 ## 역할
 
-`docs/`는 Runner.io 졸업작품의 보고서, 프로젝트 구조 설명, Git 공개 전 점검 자료, 테스트 계획 및 결과를 보관하는 문서 폴더입니다. 루트 README와 하위 폴더 README는 이 폴더의 보고서 내용과 실제 코드 구조를 함께 참고해 작성되었습니다.
+`docs/`는 Runner.io 졸업작품의 프로젝트 구조, 개발 가이드라인, 기능별 설계/검증 기록, 테스트 결과, 오류 리포트, 제출 보고서를 보관하는 문서 폴더입니다.
 
-## 문서 목록
+앞으로 새 기능 문서는 `docs/features/<feature>/` 아래에 모아 둡니다. `docs/` 루트에는 프로젝트 전체에 적용되는 공통 문서만 둡니다.
+
+## 폴더 구조
+
+| 경로 | 목적 |
+|---|---|
+| `features/` | 기능별 계획, 검증 계획, 테스트 보고서, 구현 보고서 |
+| `guidelines/` | 개발 프로세스, 기능 완료 문서화, 버그 수정 문서화 가이드 |
+| `error_reports/` | 이슈별 원인 분석, 수정 내용, 검증 결과 |
+| `research/` | 기능 조사, 기술 조사, 사전 리서치 |
+| 루트 | 프로젝트 구조, 전체 테스트 계획, 공개 전 체크리스트, 제출 보고서 |
+
+## 주요 문서
+
+### 프로젝트 공통
 
 | 문서 | 목적 |
 |---|---|
-| `졸작_중간보고서.docx` | 졸업작품 중간보고서. 프로젝트 배경, 목표, 기술 선택 이유, 구현 현황, 화면별 진행 내역, 개발 일정/역할 분담 정리 |
-| `final_midterm_report_en.docx` | 중간보고서 영문 번역본 |
-| `final_midterm_report_en.txt` | 영문 번역본을 텍스트로 확인하기 위한 파일 |
 | `PROJECT_STRUCTURE.md` | 실제 저장소 폴더 구조, 앱/백엔드/네이티브 구성, 주요 데이터 흐름 설명 |
 | `PRE_GIT_CHECKLIST.md` | GitHub 공개 전 제외 파일, 민감 정보, 검증 명령 체크리스트 |
-| `FEATURE_COMPLETION_DOCUMENTATION_GUIDELINE.md` | 기능 개발 완료 후 변경 기록, 테스트 결과, 구조 문서, README 갱신을 정규화한 문서화 가이드 |
-| `BUGFIX_DOCUMENTATION_GUIDELINE.md` | 오류 수정 완료 후 재현 절차, 원인 분석, 수정 범위, 검증 결과를 정규화한 문서화 가이드 |
-| `test_plan_and_results.md` | 테스트 계획, 자동/수동 검증 항목, E2E 테스트 결과 정리 |
-| `feature_update_running_analysis.md` | 분석 화면 추가, 하단 바 역할 변경, iOS release 서명 보정 변경 기록 |
-| `error_reports/dashboard_resume_error_report.md` | 앱 백그라운드 복귀 후 메인 대시보드 데이터 미표시 이슈의 원인 분석, 수정 내용, 검증 결과 정리 |
-| `error_reports/ios_locked_split_tts_issue_report.md` | iOS 화면 잠금 중 킬로미터당 페이스 TTS 미출력 이슈의 원인 분석, 수정 내용, 검증 계획 정리 |
+| `test_plan_and_results.md` | 전체 테스트 계획, 자동/수동 검증 항목, E2E 테스트 결과 |
 
-현재 `docs/`에서 확인되는 발표자료 또는 최종보고서 별도 파일은 없습니다. 중간보고서와 영문 번역본, 구조/테스트 문서를 기준으로 문서화를 진행했습니다.
+### 가이드라인
 
-## 주요 파일
+| 문서 | 목적 |
+|---|---|
+| `guidelines/development_process.md` | 기능 설계, 단계별 구현, 검증 계획, 테스트 보고서 작성을 정규화한 개발 프로세스 가이드 |
+| `guidelines/feature_completion_documentation.md` | 기능 개발 완료 후 변경 기록, 테스트 결과, 구조 문서, README 갱신 기준 |
+| `guidelines/bugfix_documentation.md` | 오류 수정 완료 후 재현 절차, 원인 분석, 수정 범위, 검증 결과 작성 기준 |
 
-- `졸작_중간보고서.docx`
-  - 프로젝트명 `Runner.io 러닝 기반 영토 점령 게임 애플리케이션`
-  - 러닝 앱의 단순 기록 중심 한계와 게임화 필요성 설명
-  - Flutter, Supabase, PostGIS, Edge Function 선택 이유 설명
-  - 로그인, 러닝 기록, 지도/영토, 결과 리포트, 이력/분석, 백그라운드 기능 구현 현황 정리
-  - AI 챗봇 분석, 사용자 피드백 수집, 안정성 향상은 향후 개발 목표로 분류
-- `PROJECT_STRUCTURE.md`
-  - 실제 코드 기준 폴더별 책임과 데이터 흐름 정리
-  - Flutter 앱, Supabase backend, Android/iOS native 연동 설명
-- `test_plan_and_results.md`
-  - 기능 테스트, 경계 상황, 회귀 검증 방식과 실행 결과 정리
-- `feature_update_running_analysis.md`
-  - 분석 화면과 기존 통계/러닝 기록 화면의 역할 분리 정리
-  - `statistics_service.dart`, `statistics_page.dart` 추가 내용 기록
-  - iOS release 설치 실패 원인과 `objective_c.framework` 재서명 build phase 기록
-- `error_reports/dashboard_resume_error_report.md`
-  - 메인 대시보드 점령 면적/랭킹/포인트 데이터의 로드 흐름 정리
-  - 앱 복귀 시 재조회와 프로필 캐시 방어 로직 수정 내역 정리
-  - iPhone 실기기 실행 및 통합 테스트 결과 기록
-- `error_reports/ios_locked_split_tts_issue_report.md`
-  - iOS 화면 잠금 중 페이스 TTS 미출력 흐름 정리
-  - Flutter TTS와 iOS 네이티브 `AVSpeechSynthesizer` 백그라운드 안내 경로 비교
-  - 수정 파일, 검증 결과, 실기기 테스트 계획 기록
-- `PRE_GIT_CHECKLIST.md`
-  - 공개 저장소 업로드 전 API key, build 산출물, 생성 파일 관리 기준 정리
-- `FEATURE_COMPLETION_DOCUMENTATION_GUIDELINE.md`
-  - 기능 개발 완료 후 변경 기록 문서, 테스트 결과, 구조 문서, README 갱신 기준 정리
-  - 기능 완료 체크리스트와 테스트 결과 기록 양식 제공
-- `BUGFIX_DOCUMENTATION_GUIDELINE.md`
-  - 오류 수정 완료 후 이슈 요약, 재현 절차, 원인 분석, 수정 내용, 검증 결과 기록 기준 정리
-  - 에러 리포트 표준 템플릿과 재발 방지 체크리스트 제공
+### 기능 문서
 
-## 동작 흐름
+| 문서 | 목적 |
+|---|---|
+| `features/ai_running_similarity_analysis/plan.md` | Supabase embedding, PostGIS/수치 유사도 검색, 서버 LLM 비교 리포트 개발 계획 |
+| `features/ai_running_similarity_analysis/verification_test_plan.md` | AI 러닝 유사도 분석 기능의 자동 테스트, 수동 QA, acceptance criteria |
+| `features/ai_running_similarity_analysis/test_report_20260524.md` | AI 러닝 유사도 분석 기능의 2026-05-24 검증 결과 |
+| `features/ai_running_similarity_analysis/implementation_report_20260524.md` | AI 러닝 유사도 분석 기능의 구현 범위, 변경 파일, 검증 결과 |
+| `features/running_analysis/feature_update.md` | 분석 화면 추가, 하단 바 역할 변경, iOS release 서명 보정 변경 기록 |
+| `features/design_md_application/plan.md` | design.md 적용 계획 |
+| `features/design_md_application/feature_update.md` | design.md 적용 변경 기록 |
 
-문서 흐름은 다음 순서로 읽으면 프로젝트 이해가 쉽습니다.
+### 오류 리포트
+
+| 문서 | 목적 |
+|---|---|
+| `error_reports/dashboard_resume_error_report.md` | 앱 백그라운드 복귀 후 메인 대시보드 데이터 미표시 이슈 |
+| `error_reports/ios_locked_split_tts_issue_report.md` | iOS 화면 잠금 중 킬로미터당 페이스 TTS 미출력 이슈 |
+
+### 리서치
+
+| 문서 | 목적 |
+|---|---|
+| `research/ai_feature_research_report.md` | AI 기능 구현 전 기술/제품 조사 |
+
+### 제출 보고서
+
+| 문서 | 목적 |
+|---|---|
+| `졸작_중간보고서.docx` | 졸업작품 중간보고서 |
+| `final_midterm_report_en.docx` | 중간보고서 영문 번역본 |
+| `final_midterm_report_en.txt` | 영문 번역본 텍스트 확인용 파일 |
+
+## 문서 작성 규칙
+
+- 새 기능 문서는 `docs/features/<feature>/` 아래에 작성합니다.
+- 기능 폴더 안에서는 `plan.md`, `verification_test_plan.md`, `test_report_YYYYMMDD.md`, `implementation_report_YYYYMMDD.md` 이름을 사용합니다.
+- 임시 실행 계획은 `docs/features/<feature>/tmp_execution_plan.md`처럼 `tmp_` prefix를 붙이고 완료 후 삭제합니다.
+- 새 영구 문서를 만들면 이 README의 해당 섹션에 링크를 추가합니다.
+- 프로젝트 전체 규칙은 `guidelines/`에 둡니다.
+- 이슈 수정 보고서는 `error_reports/`에 둡니다.
+
+## 추천 읽기 순서
 
 ```text
 README.md
 -> docs/README.md
 -> docs/PROJECT_STRUCTURE.md
 -> docs/test_plan_and_results.md
--> docs/feature_update_running_analysis.md
--> docs/error_reports/dashboard_resume_error_report.md
--> docs/error_reports/ios_locked_split_tts_issue_report.md
--> docs/FEATURE_COMPLETION_DOCUMENTATION_GUIDELINE.md
--> docs/BUGFIX_DOCUMENTATION_GUIDELINE.md
--> docs/PRE_GIT_CHECKLIST.md
--> 중간보고서 docx/txt
+-> docs/guidelines/development_process.md
+-> docs/features/<feature>/plan.md
+-> docs/features/<feature>/verification_test_plan.md
+-> docs/features/<feature>/test_report_YYYYMMDD.md
+-> docs/features/<feature>/implementation_report_YYYYMMDD.md
 ```
-
-기획/설계/구현/검증 관점에서는 다음처럼 연결됩니다.
-
-```text
-중간보고서
--> 프로젝트 배경과 목표 정의
--> 기술 스택 및 구현 범위 정리
-PROJECT_STRUCTURE.md
--> 실제 코드 구조와 아키텍처 설명
-test_plan_and_results.md
--> 구현 기능 검증 방법 정리
-feature_update_running_analysis.md
--> 분석 화면 추가와 iOS release 설치 이슈 수정 기록
-error_reports/dashboard_resume_error_report.md
--> 앱 복귀 대시보드 이슈 원인과 수정/검증 결과 정리
-error_reports/ios_locked_split_tts_issue_report.md
--> iOS 잠금 상태 페이스 TTS 이슈 원인과 수정/검증 계획 정리
-BUGFIX_DOCUMENTATION_GUIDELINE.md
--> 오류 수정 완료 후 에러 리포트와 검증 결과 작성 기준 제공
-FEATURE_COMPLETION_DOCUMENTATION_GUIDELINE.md
--> 기능 개발 완료 후 변경 기록과 문서 갱신 기준 제공
-PRE_GIT_CHECKLIST.md
--> 공개 전 정리 기준 제공
-```
-
-## 중간보고서 핵심 내용 요약
-
-- 러닝 인구 증가와 기존 기록형 앱의 지속 동기 부족을 문제로 정의했습니다.
-- GPS 기반 실시간 경로 기록과 지도 시각화를 핵심 기반으로 삼았습니다.
-- 사용자의 이동 경로를 영토 점령, 포인트, 랭킹과 연결해 게임화된 러닝 경험을 제공하는 것을 목표로 했습니다.
-- 중간 단계 구현 범위는 인증, Flutter 주요 화면, Supabase DB/Edge Function 연동, 러닝 세션 상태 관리, 결과/기록/포인트/랭킹/영토 화면 구성입니다.
-- Android는 foreground service 기반 백그라운드 러닝 보조, iOS는 Live Activity 기반 상태 표시를 구현 내용으로 정리했습니다.
-- 이후 개발 목표로 AI 챗봇 API 기반 분석, 안정성 향상, 최종 데모 및 사용자 피드백 수집이 언급되었습니다.
-
-## 관련 기능
-
-- 졸업작품 제출 문서 관리
-- GitHub 공개용 README 작성 근거
-- 프로젝트 구조와 테스트 결과 공유
-- 에러 리포트와 이슈별 수정/검증 기록 관리
-- 구현 완료 기능과 향후 계획 구분
 
 ## 참고 사항
 
-- 문서상 계획으로 언급된 AI 챗봇 분석 기능은 현재 코드에서 구현 파일을 확인하지 못했습니다.
-- 발표자료와 최종보고서 파일은 현재 `docs/` 폴더에서 확인되지 않았습니다.
+- 테스트 결과나 구현 범위가 바뀌면 루트 README와 이 문서를 함께 갱신합니다.
 - 보고서와 코드가 다르게 표현하는 함수 이름이 일부 있습니다. 예를 들어 보고서의 `update_profile`은 실제 Edge Function 경로 기준 `update-profile`입니다.
-- 테스트 결과나 구현 범위가 바뀌면 루트 README와 이 문서를 함께 갱신해야 합니다.

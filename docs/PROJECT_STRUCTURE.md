@@ -70,6 +70,7 @@ Edge Function과 Supabase Auth 호출을 화면에서 분리한 계층이다.
 | `supabase_api.dart` | Supabase URL/key, 인증 header, Edge Function GET/POST 공통 처리 |
 | `auth_service.dart` | 로그인, 회원가입, 로그아웃 |
 | `run_service.dart` | `create-run` 호출 |
+| `run_ai_report_service.dart` | AI 러닝 분석 리포트 생성/조회, 백필 함수 호출 |
 | `run_history_service.dart` | `run-history` 호출과 `RunHistoryEntry` 변환 |
 | `statistics_service.dart` | `RunHistoryEntry` 목록을 기간별 요약, 최근 7일 거리, 개인 최고 기록으로 집계 |
 | `point_history_service.dart` | `point-history` 호출 |
@@ -99,6 +100,8 @@ supabase/
 - `territories`: 유저별 점유 영토 geometry, 면적, 기본 포인트, 다음 포인트 처리 시각
 - `point_history`: 러닝/영토 등 포인트 이력
 - `user_point_daily`: KST 기준 일별 포인트 집계
+- `run_ai_features`: 러닝별 embedding, 수치 feature, 경로 중심점/bbox, summary text
+- `run_ai_reports`: AI 요약, 개선점, 다음 목표, 코칭 문구, 유사 기록 id 저장
 
 주요 RPC/trigger:
 
@@ -109,6 +112,8 @@ supabase/
 - `apply_territory_worker`: 만료된 영토 포인트 배치 처리
 - `get_territories_geojson`: 지도 bbox 기준 영토 GeoJSON 조회
 - `get_user_info`, `get_profile_rank_count`: 프로필/랭킹 조회
+- `match_similar_runs`: pgvector, 수치 feature, PostGIS 경로 중심점 점수로 유사 러닝 조회
+- `set_run_ai_feature_geometry`: 러닝 경로에서 AI feature용 중심점/bbox 갱신
 
 ## Edge Functions
 
@@ -116,6 +121,9 @@ supabase/
 |---|---|---|
 | `create-run` | 러닝 저장, split 저장, DB trigger를 통한 포인트/영토 파생 처리 | Bearer access token |
 | `run-history` | 현재 사용자의 러닝 기록과 split 조회 | Bearer access token |
+| `generate-run-ai-report` | 저장된 러닝의 embedding 생성, 유사 러닝 검색, 서버 LLM AI 리포트 저장 | Bearer access token |
+| `run-ai-report` | 특정 러닝 또는 최신 AI 러닝 분석 리포트 조회 | Bearer access token |
+| `backfill-run-embeddings` | 기존 러닝 데이터의 Supabase 내장 embedding 백필 | Bearer access token |
 | `point-history` | 현재 사용자의 포인트 이력 조회 | Bearer access token |
 | `profile-leaderboard` | 기간별 top/context 랭킹 조회 | Bearer access token |
 | `user-ranking` | 현재 사용자 프로필/순위 요약 조회 | Bearer access token |
@@ -154,6 +162,12 @@ RunningMapPage
    -> profiles.total_points update
    -> territories geometry update
 -> RunResultPage / History / Point / Ranking refresh
+-> RunResultPage AI 분석 버튼
+-> generate-run-ai-report
+   -> run_ai_features upsert
+   -> match_similar_runs RPC
+   -> run_ai_reports upsert
+-> RunResultPage / StatisticsPage AI 분석 카드 표시
 ```
 
 ## 점검 메모
