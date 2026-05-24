@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app_colors.dart';
 import 'login/login_page.dart';
 import 'main/running_map_page.dart';
+import 'services/supabase_config.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,10 +28,10 @@ class _AppBootstrapState extends State<AppBootstrap> {
     debugPrint('App bootstrap started');
     debugPrint('Supabase initialize started');
 
+    SupabaseConfig.requireConfigured();
     await Supabase.initialize(
-      url: 'https://ifqrceunenzqusppfxgi.supabase.co',
-      anonKey:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmcXJjZXVuZW56cXVzcHBmeGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzAxMDksImV4cCI6MjA4MDE0NjEwOX0.IDaoPRKf3UjFIz2ZlxwCfRjcP-vLjxA-dblk04CLF6A',
+      url: SupabaseConfig.url,
+      anonKey: SupabaseConfig.anonKey,
     ).timeout(const Duration(seconds: 20));
 
     debugPrint('Supabase initialize completed');
