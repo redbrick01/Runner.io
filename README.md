@@ -170,7 +170,12 @@ flutter pub get
 
 ### 환경 변수 및 키 설정
 
-현재 Supabase URL과 anon key는 `lib/main.dart`, `lib/services/supabase_api.dart`에 상수로 설정되어 있습니다. 공개 저장소 운영 시에는 키 제한, RLS, 환경 분리 전략을 반드시 확인해야 합니다.
+Flutter 앱은 Supabase URL과 anon key를 `--dart-define`으로 주입합니다. 값은 Git에 커밋하지 않고 로컬 shell, CI secret, 배포 설정에서 관리합니다.
+
+```bash
+export SUPABASE_URL="https://<project-ref>.supabase.co"
+export SUPABASE_ANON_KEY="<supabase-anon-key>"
+```
 
 Google Maps API key는 Git에 커밋하지 않습니다.
 
@@ -200,14 +205,18 @@ SUPABASE_SERVICE_ROLE_KEY
 ### 앱 실행
 
 ```bash
-flutter run
+flutter run \
+  --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+  --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 ```
 
 대상 기기를 지정하려면:
 
 ```bash
 flutter devices
-flutter run -d <device-id>
+flutter run -d <device-id> \
+  --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+  --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 ```
 
 ### Supabase 로컬 실행
