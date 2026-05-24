@@ -246,6 +246,15 @@ flutter test integration_test/runner_api_e2e_test.dart \
 
 `RUNNER_E2E_EMAIL`, `RUNNER_E2E_PASSWORD`를 생략하면 테스트가 새 사용자를 생성할 수 있습니다. 원격 DB에 테스트 데이터가 남을 수 있으므로 전용 테스트 프로젝트 또는 테스트 계정을 권장합니다.
 
+### 발표 전 실행 체크리스트
+
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GOOGLE_MAPS_API_KEY`가 로컬 또는 CI secret에만 설정되어 있는지 확인합니다.
+- `flutter analyze`와 `flutter test`를 실행해 기본 회귀를 확인합니다.
+- Android는 `./gradlew :app:compileDebugKotlin`로 네이티브 연동 컴파일을 확인합니다.
+- Supabase Edge Functions 배포 전 `deno fmt --check supabase/functions`와 `deno check` 대상 함수를 실행합니다.
+- 데모 계정은 운영 데이터와 분리된 테스트 계정만 사용합니다.
+- 지도 화면에서 위치 권한 허용, 위치 서비스 off, 러닝 저장 실패 안내를 각각 확인합니다.
+
 ## 7. 핵심 동작 흐름
 
 ### 로그인 및 진입
