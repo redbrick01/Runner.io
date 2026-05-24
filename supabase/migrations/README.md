@@ -10,6 +10,8 @@
 |---|---|
 | `20260523142500_initial_remote_schema.sql` | 원격 Supabase schema를 기준으로 정리된 초기 migration. 테이블, PostGIS 함수, trigger, RPC 포함 |
 | `20260524000500_track_run_points_in_user_point_daily.sql` | 러닝 생성 시 `user_point_daily`의 `run_points`, `total_points`를 KST 기준으로 누적하도록 보강 |
+| `20260524070000_fix_supabase_security_advisors.sql` | 깨진 영토 유지 포인트 RPC 보정, app-owned 테이블 RLS 활성화, 함수 search_path/권한 보강 |
+| `20260524071500_tighten_rls_and_rpc_permissions.sql` | RLS policy 성능 경고 보정과 internal SECURITY DEFINER RPC의 PUBLIC execute 권한 회수 |
 
 ## 동작 흐름
 

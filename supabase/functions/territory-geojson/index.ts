@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.26.0";
 console.info("territory-geojson starting");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_ANON = Deno.env.get("SUPABASE_ANON_KEY");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 type TerritoryRpcArgs = {
   in_srid: number;
@@ -118,16 +119,17 @@ function filterGeometryByBbox(
 
 Deno.serve(async (req) => {
   try {
-    if (!SUPABASE_URL || !SUPABASE_ANON) {
+    if (!SUPABASE_URL || !SUPABASE_ANON || !SUPABASE_SERVICE_ROLE_KEY) {
       return json(
         { error: "Missing required Supabase environment variables" },
         { status: 500 },
       );
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: {
         persistSession: false,
+        autoRefreshToken: false,
       },
     });
 

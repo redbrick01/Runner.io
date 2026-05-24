@@ -59,6 +59,7 @@
 |---|---|
 | `bug_fixes/dashboard_resume_error_report.md` | 앱 백그라운드 복귀 후 메인 대시보드 데이터 미표시 이슈 |
 | `bug_fixes/ios_locked_split_tts_issue_report.md` | iOS 화면 잠금 중 킬로미터당 페이스 TTS 미출력 이슈 |
+| `bug_fixes/supabase_security_advisor_error_report.md` | Supabase DB lint/advisor 오류와 RLS/RPC 권한 수정 이슈 |
 
 ## 문서 작성 규칙
 
