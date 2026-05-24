@@ -4,9 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
 
-const _baseUrl = 'https://ifqrceunenzqusppfxgi.supabase.co';
-const _anonKey =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmcXJjZXVuZW56cXVzcHBmeGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzAxMDksImV4cCI6MjA4MDE0NjEwOX0.IDaoPRKf3UjFIz2ZlxwCfRjcP-vLjxA-dblk04CLF6A';
+const _baseUrl = String.fromEnvironment('SUPABASE_URL');
+const _anonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 const _configuredEmail = String.fromEnvironment('RUNNER_E2E_EMAIL');
 const _configuredPassword = String.fromEnvironment('RUNNER_E2E_PASSWORD');
@@ -17,9 +16,15 @@ void main() {
   testWidgets('create-run persists derived run data and ranking state', (
     tester,
   ) async {
+    if (_baseUrl.isEmpty || _anonKey.isEmpty) {
+      markTestSkipped('SUPABASE_URL and SUPABASE_ANON_KEY are required');
+      return;
+    }
+
     final auth = _configuredEmail.isNotEmpty && _configuredPassword.isNotEmpty
         ? await _signIn(_configuredEmail, _configuredPassword)
         : await _signUpUniqueUser();
+    final otherAuth = await _signUpUniqueUser();
 
     final userId = auth.userId;
     final token = auth.accessToken;
@@ -99,6 +104,21 @@ void main() {
     expect(
       (rankingUser['total_points'] as num).toDouble(),
       closeTo((daily['total_points'] as num).toDouble(), 0.001),
+    );
+
+    final otherHistory =
+        await _getJson(
+              otherAuth.accessToken,
+              '/functions/v1/run-history',
+              queryParameters: {'limit': '100'},
+            )
+            as Map<String, dynamic>;
+    final otherHistoryItems = (otherHistory['items'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    expect(
+      otherHistoryItems.any((item) => item['id'] == runId),
+      isFalse,
+      reason: 'run-history must not expose another user run',
     );
   });
 }
