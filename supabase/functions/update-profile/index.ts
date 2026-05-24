@@ -1,24 +1,37 @@
 import { createClient } from "npm:@supabase/supabase-js@2.33.0";
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*", // 개발용: 프로덕션에서는 특정 origin만 허용하세요
-  "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+const ALLOWED_ORIGINS = (Deno.env.get("APP_ALLOWED_ORIGINS") ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);
+
+const CORS_BASE_HEADERS = {
+  "Access-Control-Allow-Methods": "POST,OPTIONS",
   "Access-Control-Allow-Headers":
     "Content-Type, Authorization, apikey, x-client-info",
+  "Vary": "Origin",
   "Access-Control-Allow-Credentials": "true",
 };
 
-function withCors(headers: HeadersInit = {}) {
+function resolveAllowedOrigin(req: Request): string | null {
+  const origin = req.headers.get("origin");
+  if (!origin) return null;
+  return ALLOWED_ORIGINS.includes(origin) ? origin : "";
+}
+
+function withCors(req: Request, headers: HeadersInit = {}) {
+  const allowedOrigin = resolveAllowedOrigin(req);
   return {
-    ...CORS_HEADERS,
+    ...CORS_BASE_HEADERS,
+    ...(allowedOrigin ? { "Access-Control-Allow-Origin": allowedOrigin } : {}),
     ...headers,
   };
 }
 
-function json(body: unknown, init: ResponseInit = {}) {
+function json(req: Request, body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
     ...init,
-    headers: withCors({
+    headers: withCors(req, {
       "Content-Type": "application/json",
       ...(init.headers ?? {}),
     }),
@@ -56,26 +69,34 @@ Deno.serve(async (req: Request) => {
   try {
     // Handle preflight
     if (req.method === "OPTIONS") {
+      if (resolveAllowedOrigin(req) === "") {
+        return new Response(null, { status: 403 });
+      }
       return new Response(null, {
         status: 204,
-        headers: withCors({ "Content-Length": "0" }),
+        headers: withCors(req, { "Content-Length": "0" }),
       });
+    }
+
+    if (resolveAllowedOrigin(req) === "") {
+      return json(req, { error: "Origin not allowed" }, { status: 403 });
     }
 
     // Enforce allowed methods
     if (req.method !== "POST") {
-      return json({ error: "Method not allowed" }, { status: 405 });
+      return json(req, { error: "Method not allowed" }, { status: 405 });
     }
 
     // Parse JSON body
     const contentType = req.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) {
-      return json({ error: "Expected application/json" }, { status: 400 });
+      return json(req, { error: "Expected application/json" }, { status: 400 });
     }
 
     const clients = getSupabaseClients();
     if (!clients) {
       return json(
+        req,
         { error: "Missing required Supabase environment variables" },
         { status: 500 },
       );
@@ -90,14 +111,14 @@ Deno.serve(async (req: Request) => {
       : null;
 
     if (!token) {
-      return json({ error: "Missing access token" }, { status: 401 });
+      return json(req, { error: "Missing access token" }, { status: 401 });
     }
 
     // Validate token / get user
     const { data: userData, error: userError } = await clients.supabase.auth
       .getUser(token);
     if (userError || !userData?.user) {
-      return json({ error: "Invalid token" }, { status: 401 });
+      return json(req, { error: "Invalid token" }, { status: 401 });
     }
     const user = userData.user;
 
@@ -110,14 +131,10 @@ Deno.serve(async (req: Request) => {
 
       // Simple policy: 최소 길이 8자 (원하시면 더 강화할 수 있습니다)
       if (newPassword.length < 8) {
-        return new Response(
-          JSON.stringify({
-            error: "Password must be at least 8 characters long",
-          }),
-          {
-            status: 400,
-            headers: withCors({ "Content-Type": "application/json" }),
-          },
+        return json(
+          req,
+          { error: "Password must be at least 8 characters long" },
+          { status: 400 },
         );
       }
 
@@ -131,15 +148,13 @@ Deno.serve(async (req: Request) => {
 
       if (pwError) {
         console.error("Password update error:", pwError);
-        return new Response(
-          JSON.stringify({
+        return json(
+          req,
+          {
             error: "Failed to update password",
             details: pwError.message || pwError,
-          }),
-          {
-            status: 500,
-            headers: withCors({ "Content-Type": "application/json" }),
           },
+          { status: 500 },
         );
       }
 
@@ -159,14 +174,10 @@ Deno.serve(async (req: Request) => {
     if (body.height_cm !== undefined) {
       const heightCm = Number(body.height_cm);
       if (!Number.isFinite(heightCm) || heightCm <= 0 || heightCm >= 300) {
-        return new Response(
-          JSON.stringify({
-            error: "height_cm must be a number between 1 and 299",
-          }),
-          {
-            status: 400,
-            headers: withCors({ "Content-Type": "application/json" }),
-          },
+        return json(
+          req,
+          { error: "height_cm must be a number between 1 and 299" },
+          { status: 400 },
         );
       }
       updates.height_cm = heightCm;
@@ -174,14 +185,10 @@ Deno.serve(async (req: Request) => {
     if (body.weight_kg !== undefined) {
       const weightKg = Number(body.weight_kg);
       if (!Number.isFinite(weightKg) || weightKg <= 0 || weightKg >= 500) {
-        return new Response(
-          JSON.stringify({
-            error: "weight_kg must be a number between 1 and 499",
-          }),
-          {
-            status: 400,
-            headers: withCors({ "Content-Type": "application/json" }),
-          },
+        return json(
+          req,
+          { error: "weight_kg must be a number between 1 and 499" },
+          { status: 400 },
         );
       }
       updates.weight_kg = weightKg;
@@ -199,36 +206,22 @@ Deno.serve(async (req: Request) => {
 
       if (updateError) {
         console.error("DB update error:", updateError);
-        return new Response(
-          JSON.stringify({ error: "Failed to update profile" }),
-          {
-            status: 500,
-            headers: withCors({ "Content-Type": "application/json" }),
-          },
+        return json(
+          req,
+          { error: "Failed to update profile" },
+          { status: 500 },
         );
       }
       result.profile = updated;
     }
 
     if (Object.keys(result).length === 0) {
-      return new Response(
-        JSON.stringify({ error: "No valid fields to update" }),
-        {
-          status: 400,
-          headers: withCors({ "Content-Type": "application/json" }),
-        },
-      );
+      return json(req, { error: "No valid fields to update" }, { status: 400 });
     }
 
-    return new Response(JSON.stringify({ result }), {
-      status: 200,
-      headers: withCors({ "Content-Type": "application/json" }),
-    });
+    return json(req, { result }, { status: 200 });
   } catch (err) {
     console.error("Function error:", err);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: withCors({ "Content-Type": "application/json" }),
-    });
+    return json(req, { error: "Internal server error" }, { status: 500 });
   }
 });
