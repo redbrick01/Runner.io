@@ -49,6 +49,13 @@ void main() {
       int memberLimit,
     })?
     loadCrewDetail,
+    Future<CrewMutationResult> Function({
+      required String name,
+      String? description,
+      String? region,
+      String? colorHex,
+    })?
+    createCrew,
     Future<CrewMutationResult> Function(String crewId)? leaveCrew,
   }) {
     return MaterialApp(
@@ -141,6 +148,10 @@ void main() {
               ],
             ),
         joinCrew: (_) async => CrewMutationResult(status: 'joined', crew: crew),
+        createCrew:
+            createCrew ??
+            ({required name, description, region, colorHex}) async =>
+                CrewMutationResult(status: 'created', crew: crew),
         leaveCrew:
             leaveCrew ??
             (_) async => CrewMutationResult(status: 'left', crew: crew),
@@ -171,6 +182,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('내 크루'), findsOneWidget);
+      expect(find.text('크루 만들기'), findsOneWidget);
       expect(find.text('공개 크루 찾기'), findsOneWidget);
       expect(find.text('크루 랭킹'), findsOneWidget);
       expect(find.text('강남 러너스'), findsWidgets);
@@ -243,6 +255,34 @@ void main() {
 
       expect(loadedDetails.last, nextCrew.id);
       expect(find.text('서초 러너스'), findsWidgets);
+    });
+
+    testWidgets('can create crew from crews tab', (tester) async {
+      var createdName = '';
+      var createdRegion = '';
+
+      await tester.pumpWidget(
+        buildSubject(
+          createCrew: ({required name, description, region, colorHex}) async {
+            createdName = name;
+            createdRegion = region ?? '';
+            return const CrewMutationResult(status: 'created', crew: crew);
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('크루'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, '크루명'), '한강 러너스');
+      await tester.enterText(find.widgetWithText(TextField, '지역'), '한강');
+      await tester.tap(find.text('생성'));
+      await tester.pumpAndSettle();
+
+      expect(createdName, '한강 러너스');
+      expect(createdRegion, '한강');
+      expect(find.text('크루를 만들었습니다.'), findsOneWidget);
     });
   });
 }

@@ -42,6 +42,13 @@ typedef LoadCrewDetail =
       DateTime? anchorDate,
       int memberLimit,
     });
+typedef CreateCrew =
+    Future<CrewMutationResult> Function({
+      required String name,
+      String? description,
+      String? region,
+      String? colorHex,
+    });
 typedef MutateCrew = Future<CrewMutationResult> Function(String crewId);
 
 enum _SocialTab { friends, crews }
@@ -62,6 +69,7 @@ class SocialPage extends StatefulWidget {
     this.searchCrews,
     this.loadCrewRanking,
     this.loadCrewDetail,
+    this.createCrew,
     this.joinCrew,
     this.leaveCrew,
     this.setDefaultCrew,
@@ -78,6 +86,7 @@ class SocialPage extends StatefulWidget {
   final SearchCrews? searchCrews;
   final LoadCrewRanking? loadCrewRanking;
   final LoadCrewDetail? loadCrewDetail;
+  final CreateCrew? createCrew;
   final MutateCrew? joinCrew;
   final MutateCrew? leaveCrew;
   final MutateCrew? setDefaultCrew;
@@ -89,11 +98,15 @@ class SocialPage extends StatefulWidget {
 class _SocialPageState extends State<SocialPage> {
   final _friendCodeController = TextEditingController();
   final _crewSearchController = TextEditingController();
+  final _newCrewNameController = TextEditingController();
+  final _newCrewRegionController = TextEditingController();
+  final _newCrewDescriptionController = TextEditingController();
 
   _SocialTab _tab = _SocialTab.friends;
   _SocialRange _friendRange = _SocialRange.week;
   _SocialRange _crewRange = _SocialRange.week;
   CrewSort _crewSort = CrewSort.score;
+  String _newCrewColorHex = '#448AFF';
 
   bool _friendsLoading = true;
   bool _friendActionLoading = false;
@@ -127,6 +140,9 @@ class _SocialPageState extends State<SocialPage> {
   void dispose() {
     _friendCodeController.dispose();
     _crewSearchController.dispose();
+    _newCrewNameController.dispose();
+    _newCrewRegionController.dispose();
+    _newCrewDescriptionController.dispose();
     super.dispose();
   }
 
@@ -154,6 +170,8 @@ class _SocialPageState extends State<SocialPage> {
       widget.loadCrewRanking ?? CrewService.instance.fetchCrewRanking;
   LoadCrewDetail get _loadCrewDetail =>
       widget.loadCrewDetail ?? CrewService.instance.fetchCrewDetail;
+  CreateCrew get _createCrew =>
+      widget.createCrew ?? CrewService.instance.createCrew;
   MutateCrew get _joinCrew => widget.joinCrew ?? CrewService.instance.joinCrew;
   MutateCrew get _leaveCrew =>
       widget.leaveCrew ?? CrewService.instance.leaveCrew;
@@ -410,6 +428,40 @@ class _SocialPageState extends State<SocialPage> {
       debugPrint('크루 작업 실패: $e');
       if (!mounted) return;
       _showSnack('크루 작업을 처리하지 못했습니다.');
+    } finally {
+      if (mounted) setState(() => _crewActionLoading = false);
+    }
+  }
+
+  Future<void> _submitCreateCrew() async {
+    final name = _newCrewNameController.text.trim();
+    if (name.length < 2) {
+      setState(() => _crewMessage = '크루명은 2자 이상 입력해 주세요.');
+      return;
+    }
+
+    setState(() {
+      _crewActionLoading = true;
+      _crewMessage = null;
+    });
+    try {
+      final result = await _createCrew(
+        name: name,
+        region: _newCrewRegionController.text,
+        description: _newCrewDescriptionController.text,
+        colorHex: _newCrewColorHex,
+      );
+      if (!mounted) return;
+      _newCrewNameController.clear();
+      _newCrewRegionController.clear();
+      _newCrewDescriptionController.clear();
+      _selectedCrewId = result.crew?.id;
+      _showSnack('크루를 만들었습니다.');
+      await _loadCrews(showLoading: false);
+    } catch (e) {
+      debugPrint('크루 생성 실패: $e');
+      if (!mounted) return;
+      setState(() => _crewMessage = '크루를 만들지 못했습니다.');
     } finally {
       if (mounted) setState(() => _crewActionLoading = false);
     }
@@ -710,6 +762,8 @@ class _SocialPageState extends State<SocialPage> {
           _buildErrorCard(_crewsError!, _loadCrews),
           const SizedBox(height: 12),
         ],
+        _buildCreateCrewSection(),
+        const SizedBox(height: 18),
         _buildMyCrewsSection(),
         const SizedBox(height: 18),
         _buildCrewSearchSection(),
@@ -756,6 +810,90 @@ class _SocialPageState extends State<SocialPage> {
             ),
           )
           .toList(growable: false),
+    );
+  }
+
+  Widget _buildCreateCrewSection() {
+    const swatches = [
+      '#448AFF',
+      '#00A676',
+      '#F45B69',
+      '#F5A623',
+      '#7B61FF',
+      '#111827',
+    ];
+
+    return AppSurface(
+      padding: AppSpacing.cardDense,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader('크루 만들기', Icons.add_circle_rounded),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _newCrewNameController,
+            maxLength: 24,
+            decoration: _inputDecoration('크루명'),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _newCrewRegionController,
+                  maxLength: 24,
+                  decoration: _inputDecoration('지역'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _newCrewDescriptionController,
+                  maxLength: 120,
+                  decoration: _inputDecoration('설명'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: swatches
+                      .map((hex) {
+                        final selected = _newCrewColorHex == hex;
+                        final color = _colorFromHex(hex) ?? AppColors.primary;
+                        return InkWell(
+                          onTap: () => setState(() => _newCrewColorHex = hex),
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: selected
+                                    ? AppColors.text
+                                    : AppColors.border,
+                                width: selected ? 3 : 1,
+                              ),
+                            ),
+                          ),
+                        );
+                      })
+                      .toList(growable: false),
+                ),
+              ),
+              const SizedBox(width: 10),
+              _smallButton('생성', _crewActionLoading ? null : _submitCreateCrew),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

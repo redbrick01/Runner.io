@@ -113,8 +113,34 @@ function isUniqueViolation(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false;
   const record = error as Record<string, unknown>;
   return record.code === "23505" ||
+    String(record.details ?? "").includes("crews_active_name_key") ||
+    String(record.message ?? "").includes("crews_active_name_key") ||
     String(record.details ?? "").includes("crew_members_crew_id_user_id_key") ||
     String(record.message ?? "").includes("crew_members_crew_id_user_id_key");
+}
+
+function normalizeOptionalText(
+  value: unknown,
+  maxLength: number,
+): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  return trimmed.slice(0, maxLength);
+}
+
+function normalizeCrewName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().replace(/\s+/g, " ");
+  if (trimmed.length < 2 || trimmed.length > 24) return null;
+  return trimmed;
+}
+
+function normalizeColorHex(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(trimmed)) return null;
+  return trimmed.toUpperCase();
 }
 
 async function requireAuthenticatedUser(req: Request) {
@@ -531,6 +557,114 @@ Deno.serve(async (req) => {
     const crewId = typeof payload.crew_id === "string"
       ? payload.crew_id.trim()
       : "";
+
+    if (action === "create") {
+      const name = normalizeCrewName(payload.name);
+      if (!name) {
+        return json({ error: "name must be 2-24 characters" }, {
+          status: 400,
+        });
+      }
+
+      const colorHex = normalizeColorHex(payload.color_hex) ?? "#448AFF";
+      const description = normalizeOptionalText(payload.description, 120);
+      const region = normalizeOptionalText(payload.region, 24);
+
+      const duplicate = await supabase
+        .from("crews")
+        .select("id")
+        .ilike("name", name)
+        .is("deleted_at", null)
+        .limit(1)
+        .maybeSingle();
+
+      if (duplicate.error) {
+        return json(
+          {
+            error: "Failed to check crew name",
+            details: duplicate.error.message,
+          },
+          { status: 500 },
+        );
+      }
+      if (duplicate.data) {
+        return json({ error: "Crew name already exists" }, { status: 409 });
+      }
+
+      const created = await supabase
+        .from("crews")
+        .insert({
+          name,
+          description,
+          region,
+          color_hex: colorHex,
+          is_public: true,
+          creator_id: userId,
+        })
+        .select("id")
+        .single();
+
+      if (created.error) {
+        if (isUniqueViolation(created.error)) {
+          return json({ error: "Crew name already exists" }, { status: 409 });
+        }
+
+        return json(
+          { error: "Failed to create crew", details: created.error.message },
+          { status: 500 },
+        );
+      }
+
+      const now = new Date().toISOString();
+      const membership = await supabase
+        .from("crew_members")
+        .insert({
+          crew_id: created.data.id,
+          user_id: userId,
+          joined_at: now,
+          is_default_contribution: false,
+        })
+        .select("id")
+        .single();
+
+      if (membership.error) {
+        return json(
+          {
+            error: "Crew created but failed to join creator",
+            details: membership.error.message,
+          },
+          { status: 500 },
+        );
+      }
+
+      const { error: defaultError } = await supabase.rpc("set_default_crew", {
+        p_user_id: userId,
+        p_crew_id: created.data.id,
+      });
+
+      if (defaultError) {
+        return json(
+          {
+            error: "Crew created but failed to set default",
+            details: defaultError.message,
+          },
+          { status: 500 },
+        );
+      }
+
+      const summaryResult = await fetchCrewSummaryById(
+        supabase,
+        userId,
+        created.data.id,
+      );
+      if ("response" in summaryResult) return summaryResult.response;
+
+      return json({
+        status: "created",
+        membership_id: membership.data.id,
+        crew: summaryResult.crew,
+      }, { status: 201 });
+    }
 
     if (!isUuid(crewId)) {
       return json({ error: "Invalid crew_id" }, { status: 400 });

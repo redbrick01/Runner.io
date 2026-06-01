@@ -270,6 +270,29 @@ class CrewService {
     return _postCrewAction('join', crewId);
   }
 
+  Future<CrewMutationResult> createCrew({
+    required String name,
+    String? description,
+    String? region,
+    String? colorHex,
+  }) async {
+    final decoded = await SupabaseApi.postFunctionJson(
+      'social-crews',
+      body: {
+        'action': 'create',
+        'name': name.trim(),
+        if (description != null && description.trim().isNotEmpty)
+          'description': description.trim(),
+        if (region != null && region.trim().isNotEmpty) 'region': region.trim(),
+        if (colorHex != null && colorHex.trim().isNotEmpty)
+          'color_hex': colorHex.trim(),
+      },
+    );
+    return CrewMutationResult.fromJson(
+      SupabaseApi.requireJsonMap(decoded, 'social-crews'),
+    );
+  }
+
   Future<CrewMutationResult> leaveCrew(String crewId) {
     return _postCrewAction('leave', crewId);
   }
