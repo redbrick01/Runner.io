@@ -20,6 +20,7 @@ import 'my_page.dart';
 import 'run_history_page.dart';
 import 'run_session_engine.dart';
 import 'run_result_page.dart';
+import 'social_page.dart';
 import 'statistics_page.dart';
 import 'territory_detail_page.dart';
 
@@ -2615,7 +2616,12 @@ class _RunningMapPageState extends State<RunningMapPage>
               );
             }),
             const SizedBox(width: 80),
-            _buildNavItem(Icons.people_rounded, "소셜", false, null),
+            _buildNavItem(Icons.people_rounded, "소셜", false, () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SocialPage()),
+              );
+            }),
             _buildNavItem(Icons.person_rounded, "마이", false, () async {
               final result = await Navigator.push(
                 context,
