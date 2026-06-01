@@ -5,9 +5,9 @@ import {
   parseAnchorDate,
   parseBearerToken,
   parseCrewSort,
+  parseMemberLimit,
   parseSearchLimit,
   parseSeasonType,
-  round2,
   type SeasonType,
   startOfDayKst,
 } from "./helpers.ts";
@@ -45,20 +45,6 @@ type CrewMemberRow = {
   is_default_contribution: boolean;
   last_contributed_at: string | null;
   left_at: string | null;
-};
-
-type ContributionRow = {
-  crew_id: string;
-  user_id?: string;
-  contribution_score: number | null;
-  contribution_area_m2: number | null;
-  created_at?: string | null;
-};
-
-type ProfileRow = {
-  user_id: string;
-  nick_name: string | null;
-  color_hex: string | null;
 };
 
 type CrewSummary = {
@@ -328,115 +314,31 @@ async function fetchMemberContributions(
   supabase: SupabaseClient,
   crewId: string,
   bounds: { from: string; to: string },
+  limit: number,
 ): Promise<{ members: CrewMemberContribution[] } | { response: Response }> {
-  const { data: memberRows, error: memberError } = await supabase
-    .from("crew_members")
-    .select(
-      "id,crew_id,user_id,joined_at,is_default_contribution,last_contributed_at,left_at",
-    )
-    .eq("crew_id", crewId)
-    .is("left_at", null);
+  const { data, error } = await supabase.rpc(
+    "social_crew_member_contributions",
+    {
+      p_crew_id: crewId,
+      p_season_from: startOfDayKst(bounds.from),
+      p_season_to_exclusive: startOfDayKst(nextDateKey(bounds.to)),
+      p_limit: limit,
+    },
+  );
 
-  if (memberError) {
-    return {
-      response: json(
-        { error: "Failed to fetch crew members", details: memberError.message },
-        { status: 500 },
-      ),
-    };
-  }
-
-  const activeMembers = (memberRows ?? []) as CrewMemberRow[];
-  const userIds = [...new Set(activeMembers.map((member) => member.user_id))];
-  const { data: profiles, error: profileError } = userIds.length > 0
-    ? await supabase
-      .from("profiles")
-      .select("user_id,nick_name,color_hex")
-      .in("user_id", userIds)
-    : { data: [], error: null };
-
-  if (profileError) {
-    return {
-      response: json(
-        {
-          error: "Failed to fetch crew member profiles",
-          details: profileError.message,
-        },
-        { status: 500 },
-      ),
-    };
-  }
-
-  const seasonFrom = startOfDayKst(bounds.from);
-  const seasonTo = startOfDayKst(nextDateKey(bounds.to));
-  const { data: contributionRows, error: contributionError } = await supabase
-    .from("run_crew_contributions")
-    .select("user_id,crew_id,contribution_score,contribution_area_m2")
-    .eq("crew_id", crewId)
-    .gte("created_at", seasonFrom)
-    .lt("created_at", seasonTo);
-
-  if (contributionError) {
+  if (error) {
     return {
       response: json(
         {
           error: "Failed to fetch member contributions",
-          details: contributionError.message,
+          details: error.message,
         },
         { status: 500 },
       ),
     };
   }
 
-  const profilesById = new Map(
-    ((profiles ?? []) as ProfileRow[]).map((
-      profile,
-    ) => [profile.user_id, profile]),
-  );
-  const scoreByUser = new Map<string, { score: number; area: number }>();
-  for (const row of (contributionRows ?? []) as ContributionRow[]) {
-    if (!row.user_id) continue;
-    const current = scoreByUser.get(row.user_id) ?? { score: 0, area: 0 };
-    const score = Number(row.contribution_score ?? 0);
-    const area = Number(row.contribution_area_m2 ?? 0);
-    scoreByUser.set(row.user_id, {
-      score: current.score + (Number.isFinite(score) ? score : 0),
-      area: current.area + (Number.isFinite(area) ? area : 0),
-    });
-  }
-
-  const ranked = activeMembers
-    .map((member) => {
-      const profile = profilesById.get(member.user_id);
-      const metric = scoreByUser.get(member.user_id) ?? { score: 0, area: 0 };
-      return {
-        user_id: member.user_id,
-        nick_name: profile?.nick_name ?? null,
-        color_hex: profile?.color_hex ?? null,
-        contribution_score: round2(metric.score),
-        contribution_area_m2: round2(metric.area),
-        display_rank: 1,
-      };
-    })
-    .sort((a, b) => {
-      if (b.contribution_score !== a.contribution_score) {
-        return b.contribution_score - a.contribution_score;
-      }
-      if (b.contribution_area_m2 !== a.contribution_area_m2) {
-        return b.contribution_area_m2 - a.contribution_area_m2;
-      }
-      return a.user_id.localeCompare(b.user_id);
-    });
-
-  for (const row of ranked) {
-    row.display_rank = 1 +
-      ranked.filter((other) =>
-        other.contribution_score > row.contribution_score
-      )
-        .length;
-  }
-
-  return { members: ranked };
+  return { members: (data ?? []) as CrewMemberContribution[] };
 }
 
 Deno.serve(async (req) => {
@@ -555,17 +457,12 @@ Deno.serve(async (req) => {
         );
         if ("response" in summaryResult) return summaryResult.response;
 
-        const activeMembership = await fetchActiveMembership(
+        const membersResult = await fetchMemberContributions(
           supabase,
-          userId,
           crewId,
+          season.bounds,
+          parseMemberLimit(url.searchParams.get("member_limit")),
         );
-        if ("response" in activeMembership) return activeMembership.response;
-
-        const canViewMembers = Boolean(activeMembership.membership);
-        const membersResult = canViewMembers
-          ? await fetchMemberContributions(supabase, crewId, season.bounds)
-          : { members: [] };
         if ("response" in membersResult) return membersResult.response;
 
         return json({
@@ -576,7 +473,7 @@ Deno.serve(async (req) => {
             to: season.bounds.to,
           },
           crew: stripInternal(summaryResult.summaries[0]),
-          can_view_members: canViewMembers,
+          can_view_members: true,
           members: membersResult.members,
         });
       }

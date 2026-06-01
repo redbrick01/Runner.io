@@ -31,6 +31,12 @@ export function parseSearchLimit(value: string | null): number {
   return Math.min(Math.floor(parsed), 50);
 }
 
+export function parseMemberLimit(value: string | null): number {
+  const parsed = Number(value ?? "");
+  if (!Number.isFinite(parsed) || parsed <= 0) return 50;
+  return Math.min(Math.floor(parsed), 100);
+}
+
 export function parseBearerToken(
   authHeader: string | null,
   anonKey: string | undefined,

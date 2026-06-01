@@ -4,6 +4,7 @@ import {
   parseAnchorDate,
   parseBearerToken,
   parseCrewSort,
+  parseMemberLimit,
   parseSearchLimit,
   parseSeasonType,
 } from "./helpers.ts";
@@ -47,6 +48,13 @@ Deno.test("parseSearchLimit bounds crew search work", () => {
   assertEquals(parseSearchLimit("5"), 5);
   assertEquals(parseSearchLimit("500"), 50);
   assertEquals(parseSearchLimit("-1"), 20);
+});
+
+Deno.test("parseMemberLimit defaults to 50 and caps at 100", () => {
+  assertEquals(parseMemberLimit(null), 50);
+  assertEquals(parseMemberLimit("12"), 12);
+  assertEquals(parseMemberLimit("500"), 100);
+  assertEquals(parseMemberLimit("-1"), 50);
 });
 
 Deno.test("parseAnchorDate accepts only empty or YYYY-MM-DD dates", () => {

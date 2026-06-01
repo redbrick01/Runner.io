@@ -258,6 +258,86 @@ ALTER FUNCTION public.social_crew_summaries_by_ids(
   timestamptz
 ) OWNER TO "postgres";
 
+CREATE OR REPLACE FUNCTION public.social_crew_member_contributions(
+  p_crew_id uuid,
+  p_season_from timestamptz,
+  p_season_to_exclusive timestamptz,
+  p_limit integer
+)
+RETURNS TABLE (
+  user_id uuid,
+  nick_name text,
+  color_hex text,
+  contribution_score double precision,
+  contribution_area_m2 double precision,
+  display_rank integer
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+WITH target_crew AS (
+  SELECT c.id
+  FROM public.crews c
+  WHERE c.id = p_crew_id
+    AND c.is_public = true
+    AND c.deleted_at IS NULL
+),
+active_members AS (
+  SELECT cm.user_id
+  FROM public.crew_members cm
+  JOIN target_crew tc ON tc.id = cm.crew_id
+  WHERE cm.left_at IS NULL
+),
+season_totals AS (
+  SELECT rcc.user_id,
+         COALESCE(SUM(rcc.contribution_score), 0)::double precision AS contribution_score,
+         COALESCE(SUM(rcc.contribution_area_m2), 0)::double precision AS contribution_area_m2
+  FROM public.run_crew_contributions rcc
+  JOIN target_crew tc ON tc.id = rcc.crew_id
+  WHERE rcc.created_at >= p_season_from
+    AND rcc.created_at < p_season_to_exclusive
+  GROUP BY rcc.user_id
+),
+ranked_members AS (
+  SELECT am.user_id,
+         p.nick_name,
+         p.color_hex,
+         COALESCE(st.contribution_score, 0)::double precision AS contribution_score,
+         COALESCE(st.contribution_area_m2, 0)::double precision AS contribution_area_m2
+  FROM active_members am
+  LEFT JOIN season_totals st ON st.user_id = am.user_id
+  LEFT JOIN public.profiles p ON p.user_id = am.user_id
+)
+SELECT ranked_members.user_id,
+       ranked_members.nick_name,
+       ranked_members.color_hex,
+       ranked_members.contribution_score,
+       ranked_members.contribution_area_m2,
+       RANK() OVER (
+         ORDER BY
+           ranked_members.contribution_score DESC,
+           ranked_members.contribution_area_m2 DESC
+       )::integer AS display_rank
+FROM ranked_members
+ORDER BY
+  ranked_members.contribution_score DESC,
+  ranked_members.contribution_area_m2 DESC,
+  ranked_members.user_id ASC
+LIMIT LEAST(
+  CASE WHEN COALESCE(p_limit, 0) <= 0 THEN 50 ELSE p_limit END,
+  100
+);
+$$;
+
+ALTER FUNCTION public.social_crew_member_contributions(
+  uuid,
+  timestamptz,
+  timestamptz,
+  integer
+) OWNER TO "postgres";
+
 CREATE OR REPLACE FUNCTION public.set_default_crew(
   p_user_id uuid,
   p_crew_id uuid
@@ -338,6 +418,14 @@ COMMENT ON FUNCTION public.social_crew_summaries_by_ids(
 ) IS
   'Returns public non-deleted crew summaries for specific crew IDs with metrics aggregated in Postgres.';
 
+COMMENT ON FUNCTION public.social_crew_member_contributions(
+  uuid,
+  timestamptz,
+  timestamptz,
+  integer
+) IS
+  'Returns bounded active-member contribution rankings for a public non-deleted crew in one season window.';
+
 COMMENT ON FUNCTION public.set_default_crew(uuid, uuid) IS
   'Atomically makes one active crew membership the default contribution crew for a user.';
 
@@ -356,6 +444,12 @@ REVOKE ALL ON FUNCTION public.social_crew_summaries_by_ids(
   timestamptz,
   timestamptz
 ) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.social_crew_member_contributions(
+  uuid,
+  timestamptz,
+  timestamptz,
+  integer
+) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.set_default_crew(uuid, uuid)
   FROM PUBLIC, anon, authenticated;
 
@@ -373,6 +467,12 @@ GRANT EXECUTE ON FUNCTION public.social_crew_summaries_by_ids(
   uuid[],
   timestamptz,
   timestamptz
+) TO service_role;
+GRANT EXECUTE ON FUNCTION public.social_crew_member_contributions(
+  uuid,
+  timestamptz,
+  timestamptz,
+  integer
 ) TO service_role;
 GRANT EXECUTE ON FUNCTION public.set_default_crew(uuid, uuid)
   TO service_role;
