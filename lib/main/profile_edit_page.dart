@@ -424,17 +424,19 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
-                      height: 56,
+                      height: 44,
                       child: ElevatedButton(
                         onPressed: _isSubmitting
                             ? null
                             : _confirmAndUpdateProfile,
                         style: ElevatedButton.styleFrom(
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(
+                              AppRadii.control,
+                            ),
                           ),
                           elevation: 0,
                         ),

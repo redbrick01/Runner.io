@@ -3,38 +3,52 @@ import 'package:flutter/material.dart';
 import '../app_colors.dart';
 
 class AppSpacing {
-  static const page = EdgeInsets.fromLTRB(16, 8, 16, 24);
-  static const card = EdgeInsets.all(16);
+  static const page = EdgeInsets.fromLTRB(16, 24, 16, 24);
+  static const pageWithBottomNav = EdgeInsets.fromLTRB(16, 24, 16, 132);
+  static const card = EdgeInsets.all(20);
+  static const cardDense = EdgeInsets.all(12);
   static const cardLarge = EdgeInsets.all(20);
-  static const gapTiny = SizedBox(height: 6);
-  static const gapSmall = SizedBox(height: 10);
-  static const gap = SizedBox(height: 14);
-  static const gapLarge = SizedBox(height: 20);
+  static const gapTiny = SizedBox(height: 8);
+  static const gapSmall = SizedBox(height: 12);
+  static const gap = SizedBox(height: 20);
+  static const gapLarge = SizedBox(height: 24);
+  static const sectionGap = SizedBox(height: 32);
 }
 
 class AppRadii {
-  static const double control = 14;
-  static const double card = 18;
-  static const double heroCard = 28;
+  static const double control = 100;
+  static const double card = 16;
+  static const double heroCard = 16;
+  static const double sheet = 24;
 }
 
 class AppTextStyles {
   static const sectionTitle = TextStyle(
     color: AppColors.text,
-    fontSize: 16,
-    fontWeight: FontWeight.w800,
+    fontFamily: 'SUIT',
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    height: 1.3,
+    letterSpacing: 0,
   );
 
   static const label = TextStyle(
     color: AppColors.secondaryText,
-    fontSize: 12,
-    fontWeight: FontWeight.w700,
+    fontFamily: 'SUIT',
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    height: 1.43,
+    letterSpacing: 0,
   );
 
   static const metric = TextStyle(
     color: AppColors.text,
-    fontSize: 22,
-    fontWeight: FontWeight.w900,
+    fontFamily: 'SUIT',
+    fontSize: 36,
+    fontWeight: FontWeight.w500,
+    height: 1.1,
+    letterSpacing: 0,
+    fontFeatures: [FontFeature.tabularFigures()],
   );
 }
 
@@ -76,9 +90,9 @@ class AppSurface extends StatelessWidget {
         boxShadow: shadow
             ? [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 18,
-                  offset: const Offset(0, 10),
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ]
             : null,
@@ -120,14 +134,14 @@ class AppSegmentedControl<T> extends StatelessWidget {
               return Expanded(
                 child: InkWell(
                   onTap: selected ? null : () => onChanged(option.value),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppRadii.control),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     height: 40,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: selected ? AppColors.primary : Colors.transparent,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(AppRadii.control),
                     ),
                     child: Text(
                       option.label,

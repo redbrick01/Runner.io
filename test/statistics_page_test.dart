@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:runner_flutter/main/statistics_page.dart';
+import 'package:runner_flutter/services/run_ai_report_service.dart';
 import 'package:runner_flutter/services/run_history_service.dart';
 
 void main() {
@@ -23,12 +24,13 @@ void main() {
 
   Widget buildSubject({
     required Future<List<RunHistoryEntry>> Function() loadEntries,
+    Future<RunAiReport?> Function()? loadLatestAiReport,
   }) {
     return MaterialApp(
       home: StatisticsPage(
         now: DateTime(2026, 5, 24, 12),
         loadEntries: loadEntries,
-        loadLatestAiReport: () async => null,
+        loadLatestAiReport: loadLatestAiReport ?? () async => null,
       ),
     );
   }
@@ -94,6 +96,56 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('이번 달 지난 기간보다 400% 더 달렸어요.'), findsOneWidget);
+    });
+
+    testWidgets('does not overflow on a narrow iPhone analysis layout', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(393, 852);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        buildSubject(
+          loadEntries: () async => [
+            entry(
+              startedAt: '2026-05-24T09:00:00',
+              distance: 2020,
+              duration: 112,
+              point: 22.2,
+              area: 370000,
+            ),
+            entry(
+              startedAt: '2026-05-21T09:00:00',
+              distance: 2100,
+              duration: 140,
+            ),
+            entry(
+              startedAt: '2026-05-20T09:00:00',
+              distance: 1200,
+              duration: 800,
+            ),
+          ],
+          loadLatestAiReport: () async => const RunAiReport(
+            runId: 1,
+            summary:
+                '이번 2.02km 러닝은 유사 기록 5회 평균보다 약간 더 빠른 편이었고, 오르막 부담이 있는 코스에서도 초반 페이스는 안정적이었습니다.',
+            improvements: [],
+            nextGoal: {'label': '고르기 2.1km 러닝'},
+            coachingMessage: '좋아요! 오늘은 오르막이 있었는데도 초반 페이스가 잘 나왔어요.',
+            comparison: {'similar_run_count': 5},
+            status: 'completed',
+            model: 'test',
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView), const Offset(0, -900));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
     });
   });
 }

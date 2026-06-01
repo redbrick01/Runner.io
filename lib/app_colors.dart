@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const primary = Color(0xFF007AFF);
-  static const primaryDark = Color(0xFF0056CC);
-  static const primarySoft = Color(0xFFEAF2FF);
-  static const accent = Color(0xFF34C759);
-  static const accentSoft = Color(0xFFE8F8EE);
-  static const warning = Color(0xFFFF9500);
-  static const warningSoft = Color(0xFFFFF4E5);
-  static const background = Color(0xFFF2F2F7);
-  static const backgroundTop = Color(0xFFF2F2F7);
+  static const primary = Color(0xFF3A6DFF);
+  static const primaryDark = Color(0xFF2DA4FF);
+  static const primarySoft = Color(0xFFEEF0F3);
+  static const accent = Color(0xFF00D47E);
+  static const accentSoft = Color(0xFFEEF0F3);
+  static const warning = Color(0xFFFFB800);
+  static const warningSoft = Color(0xFFEEF0F3);
+  static const background = Colors.white;
+  static const backgroundTop = Colors.white;
   static const surface = Colors.white;
-  static const surfaceSoft = Color(0xFFF9F9FB);
-  static const surfaceRaised = Color(0xFFFFFFFF);
-  static const border = Color(0x1F3C3C43);
-  static const borderStrong = Color(0x333C3C43);
-  static const text = Color(0xFF1C1C1E);
-  static const secondaryText = Color(0xFF8E8E93);
-  static const destructive = Color(0xFFFF3B30);
-  static const destructiveSoft = Color(0xFFFFEBEA);
+  static const surfaceSoft = Color(0xFFF7F7F7);
+  static const surfaceRaised = Color(0xFFEEF0F3);
+  static const border = Color(0xFFDEE1E6);
+  static const borderStrong = Color(0xFFA8ACB3);
+  static const text = Color(0xFF0A0B0D);
+  static const secondaryText = Color(0xFF5B616E);
+  static const mutedText = Color(0xFF7C828A);
+  static const disabledText = Color(0xFFA8ACB3);
+  static const destructive = Color(0xFFFF4554);
+  static const destructiveSoft = Color(0xFFEEF0F3);
 }

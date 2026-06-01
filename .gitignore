@@ -63,3 +63,6 @@ macos/.symlinks/
 ios/Flutter/Local.xcconfig
 **/xcuserdata/
 **/UserInterfaceState.xcuserstate
+
+# Local feature worktrees
+.worktrees/

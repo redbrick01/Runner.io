@@ -35,3 +35,15 @@ flutter:
     - assets/badges/generated/runner_badges_board.png
     - assets/badges/generated/icons/
     - assets/badges/generated/tiles/
+
+  fonts:
+    - family: SUIT
+      fonts:
+        - asset: assets/fonts/suit/SUIT-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/suit/SUIT-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/suit/SUIT-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/suit/SUIT-Bold.ttf
+          weight: 700

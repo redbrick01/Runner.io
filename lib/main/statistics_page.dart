@@ -112,6 +112,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
           : RefreshIndicator(
               onRefresh: _loadStatistics,
               child: ListView(
+                cacheExtent: 1000,
                 padding: AppSpacing.page,
                 children: [
                   if (_errorMessage != null)
@@ -139,9 +140,9 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     isLoading: _isAiReportLoading,
                   ),
                   AppSpacing.gap,
-                  _DistanceChart(days: summary.recentDailyDistances),
-                  AppSpacing.gap,
                   _RecordsSection(records: summary.personalRecords),
+                  AppSpacing.gap,
+                  _DistanceChart(days: summary.recentDailyDistances),
                 ],
               ),
             ),
@@ -186,7 +187,7 @@ class _SummarySection extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
-          childAspectRatio: 1.55,
+          childAspectRatio: 1.22,
           children: [
             AppMetricCard(
               label: '총 거리',
@@ -458,7 +459,7 @@ class _DistanceChart extends StatelessWidget {
           const Text('최근 7일 거리', style: AppTextStyles.sectionTitle),
           const SizedBox(height: 18),
           SizedBox(
-            height: 150,
+            height: 166,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: days
@@ -480,18 +481,24 @@ class _DistanceChart extends StatelessWidget {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              height: 18 + (90 * ratio),
-                              decoration: BoxDecoration(
-                                color: day.distanceMetres > 0
-                                    ? AppColors.primary
-                                    : AppColors.primarySoft,
-                                borderRadius: BorderRadius.circular(8),
+                            const SizedBox(height: 4),
+                            SizedBox(
+                              height: 104,
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  height: 16 + (82 * ratio),
+                                  decoration: BoxDecoration(
+                                    color: day.distanceMetres > 0
+                                        ? AppColors.primary
+                                        : AppColors.primarySoft,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Text(
                               _weekday(day.date),
                               style: const TextStyle(
