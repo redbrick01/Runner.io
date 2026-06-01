@@ -409,6 +409,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   DateTime? _lastFetchTime;
   DateTime? _lastUserRankingFetchTime;
   bool _isFetchingTerritory = false;
+  int _territoryFetchToken = 0;
   Future<void>? _userRankingFetchFuture;
   bool _isCountdownActive = false;
 
@@ -1356,14 +1357,17 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Future<void> _fetchTerritories({bool force = false}) async {
-    if (_isFetchingTerritory) return;
+    if (_isFetchingTerritory && !force) return;
     final now = DateTime.now();
     final throttleSeconds = force ? 1 : 3;
     if (_lastFetchTime != null &&
+        !force &&
         now.difference(_lastFetchTime!).inSeconds < throttleSeconds) {
       return;
     }
 
+    final fetchToken = ++_territoryFetchToken;
+    final scope = _territoryScope;
     _isFetchingTerritory = true;
     _lastFetchTime = now;
 
@@ -1371,16 +1375,21 @@ class _RunningMapPageState extends State<RunningMapPage>
       final data = await RunningMapService.instance.fetchTerritories(
         mapController: mapController,
         currentPosition: _currentPosition,
-        scope: _territoryScope,
+        scope: scope,
       );
       if (data == null) {
+        return;
+      }
+      if (fetchToken != _territoryFetchToken || scope != _territoryScope) {
         return;
       }
       await _parseTerritoryGeoJson(data);
     } catch (e) {
       debugPrint("영토 데이터 로드 실패: $e");
     } finally {
-      _isFetchingTerritory = false;
+      if (fetchToken == _territoryFetchToken) {
+        _isFetchingTerritory = false;
+      }
     }
   }
 
