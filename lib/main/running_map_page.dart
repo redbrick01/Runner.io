@@ -8,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../app_colors.dart';
 import '../design/app_design.dart';
+import '../services/crew_service.dart';
 import '../services/live_run_coaching_service.dart';
 import '../services/live_run_coaching_settings.dart';
 import '../services/run_native_adapter.dart';
@@ -26,6 +27,24 @@ import 'statistics_page.dart';
 import 'territory_detail_page.dart';
 
 enum _TerritoryLayer { personal, friends, crew }
+
+@visibleForTesting
+String? defaultCrewContributionIdFor(Iterable<CrewSummary> crews) {
+  final joinedCrews = crews
+      .where((crew) => crew.isJoined && crew.id.trim().isNotEmpty)
+      .toList(growable: false);
+  if (joinedCrews.isEmpty) {
+    return null;
+  }
+
+  for (final crew in joinedCrews) {
+    if (crew.isDefaultContribution) {
+      return crew.id.trim();
+    }
+  }
+
+  return joinedCrews.first.id.trim();
+}
 
 class RunningMapPage extends StatefulWidget {
   final LatLng? initialFocusTarget;
@@ -68,7 +87,14 @@ class _RunningMapPageState extends State<RunningMapPage>
   static const double _runningFollowZoom = 18;
   static const double _manualLocateZoom = 18;
   static const double _compassResetThreshold = 1;
+  static const String _noCrewContributionSelection = '__no_crew__';
   String? _currentUserId;
+  List<CrewSummary> _joinedContributionCrews = const [];
+  String? _selectedCrewContributionId;
+  bool _isLoadingContributionCrews = false;
+  bool _crewContributionLoadFailed = false;
+  bool _hasUserSelectedCrewContribution = false;
+  int _crewContributionLoadToken = 0;
 
   Timer? _timer;
   Timer? _territoryTimer;
@@ -520,6 +546,56 @@ class _RunningMapPageState extends State<RunningMapPage>
       }
     } catch (e) {
       debugPrint('Live coaching setting load failed: $e');
+    }
+  }
+
+  Future<void> _loadContributionCrews() async {
+    if (_isLoadingContributionCrews) {
+      return;
+    }
+
+    final requestToken = ++_crewContributionLoadToken;
+    setState(() {
+      _isLoadingContributionCrews = true;
+      _crewContributionLoadFailed = false;
+    });
+
+    try {
+      final crews = await CrewService.instance.fetchMyCrews();
+      final joinedCrews = crews
+          .where((crew) => crew.isJoined && crew.id.trim().isNotEmpty)
+          .toList(growable: false);
+      if (!mounted || requestToken != _crewContributionLoadToken) {
+        return;
+      }
+
+      final currentSelection = _selectedCrewContributionId;
+      final keepsCurrentSelection =
+          currentSelection != null &&
+          joinedCrews.any((crew) => crew.id.trim() == currentSelection);
+      final nextSelection = keepsCurrentSelection
+          ? currentSelection
+          : _hasUserSelectedCrewContribution
+          ? null
+          : defaultCrewContributionIdFor(joinedCrews);
+
+      setState(() {
+        _joinedContributionCrews = joinedCrews;
+        _selectedCrewContributionId = nextSelection;
+        _isLoadingContributionCrews = false;
+        _crewContributionLoadFailed = false;
+      });
+    } catch (e) {
+      debugPrint('크루 기여 목록 불러오기 실패: $e');
+      if (!mounted || requestToken != _crewContributionLoadToken) {
+        return;
+      }
+      setState(() {
+        _joinedContributionCrews = const [];
+        _selectedCrewContributionId = null;
+        _isLoadingContributionCrews = false;
+        _crewContributionLoadFailed = true;
+      });
     }
   }
 
@@ -1912,6 +1988,9 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   void _startRunning() {
+    if (!_isLoadingContributionCrews && _joinedContributionCrews.isEmpty) {
+      unawaited(_loadContributionCrews());
+    }
     _lastAnnouncedSplitKm = 0;
     _lastAnnouncedSplitElapsedSeconds = 0;
     _lastAnnouncedSplitAscentMeters = 0;
@@ -2288,6 +2367,7 @@ class _RunningMapPageState extends State<RunningMapPage>
         flattenedPathGeom: flattenedPathGeom,
         splits: runSplits,
         routePoints: routeCopy.map((point) => point.toJson()).toList(),
+        crewContributionId: _selectedCrewContributionId,
       );
 
       Map<String, dynamic>? savedRunData;
@@ -2916,6 +2996,8 @@ class _RunningMapPageState extends State<RunningMapPage>
             ],
           ),
           const SizedBox(height: 24),
+          _buildCrewContributionSelector(),
+          const SizedBox(height: 20),
           Center(
             child: Wrap(
               alignment: WrapAlignment.center,
@@ -2944,6 +3026,133 @@ class _RunningMapPageState extends State<RunningMapPage>
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCrewContributionSelector() {
+    final hasCrews = _joinedContributionCrews.isNotEmpty;
+    final statusText = _crewContributionLoadFailed
+        ? '크루를 불러오지 못해 개인 기록으로 저장돼요'
+        : _isLoadingContributionCrews
+        ? '크루 목록 불러오는 중'
+        : hasCrews
+        ? '이번 러닝을 기여할 크루'
+        : '참여 중인 크루 없음';
+    final statusColor = _crewContributionLoadFailed
+        ? AppColors.warning
+        : AppColors.secondaryText;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: _crewContributionLoadFailed
+            ? AppColors.warning.withValues(alpha: 0.08)
+            : AppColors.primarySoft.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _crewContributionLoadFailed
+              ? AppColors.warning.withValues(alpha: 0.35)
+              : AppColors.primary.withValues(alpha: 0.10),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            _crewContributionLoadFailed
+                ? Icons.info_outline_rounded
+                : Icons.groups_rounded,
+            color: statusColor,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '크루 기여',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  statusText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          if (_isLoadingContributionCrews)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else if (hasCrews)
+            SizedBox(
+              width: 136,
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value:
+                      _selectedCrewContributionId ??
+                      _noCrewContributionSelection,
+                  isDense: true,
+                  isExpanded: true,
+                  borderRadius: BorderRadius.circular(14),
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                  style: const TextStyle(
+                    color: AppColors.text,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: _noCrewContributionSelection,
+                      child: Text('기여 안 함', overflow: TextOverflow.ellipsis),
+                    ),
+                    ..._joinedContributionCrews.map(
+                      (crew) => DropdownMenuItem<String>(
+                        value: crew.id.trim(),
+                        child: Text(crew.name, overflow: TextOverflow.ellipsis),
+                      ),
+                    ),
+                  ],
+                  onChanged: _isFinishingRun
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _hasUserSelectedCrewContribution = true;
+                            _selectedCrewContributionId =
+                                value == _noCrewContributionSelection
+                                ? null
+                                : value;
+                          });
+                        },
+                ),
+              ),
+            )
+          else
+            const Text(
+              '개인',
+              style: TextStyle(
+                color: AppColors.secondaryText,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
         ],
       ),
     );
