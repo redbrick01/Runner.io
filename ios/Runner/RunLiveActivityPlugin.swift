@@ -6,6 +6,7 @@ import UIKit
 
 final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate, AVSpeechSynthesizerDelegate {
     private static let channelName = "run_live_activity"
+    private static let splitAnnouncementDistanceMeters = 500.0
     private static var channel: FlutterMethodChannel?
     private static var actionObserver: NSObjectProtocol?
     private let locationManager = CLLocationManager()
@@ -23,6 +24,12 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
     private var lastLocation: CLLocation?
     private var lastAnnouncedSplitKm: Int = 0
     private var lastAnnouncedSplitElapsedSeconds: Int = 0
+    private var isSplitTrackingActive = false
+    private var lastSyncedFlutterDistanceMeters: Double = 0
+    private var lastNativeLocationUpdateAt: Date?
+    private var lastSplitAnnouncementAt: Date?
+    private var lastAudioSessionError: String?
+    private var lastLocationError: String?
 
     static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(
@@ -75,6 +82,14 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
             playSplitChime(result: result)
         case "announceSplitInBackground":
             announceSplitInBackground(call: call, result: result)
+        case "startIosSplitTracking":
+            startIosSplitTracking(call: call, result: result)
+        case "updateIosSplitTracking":
+            updateIosSplitTracking(call: call, result: result)
+        case "stopIosSplitTracking":
+            stopIosSplitTracking(result: result)
+        case "getIosSplitTrackingStatus":
+            getIosSplitTrackingStatus(result: result)
         case "beginCountdownBackgroundTask":
             beginCountdownBackgroundTask(result: result)
         case "endCountdownBackgroundTask":
@@ -107,14 +122,16 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
             return
         }
 
+        guard speakSplitAnnouncement(speech) else {
+            result(FlutterError(code: "audio_session_failed", message: lastAudioSessionError, details: nil))
+            return
+        }
         if let completedKm {
             lastAnnouncedSplitKm = max(lastAnnouncedSplitKm, completedKm)
         }
         if let elapsedSeconds {
             lastAnnouncedSplitElapsedSeconds = max(lastAnnouncedSplitElapsedSeconds, elapsedSeconds)
         }
-
-        speakSplitAnnouncement(speech)
         result(nil)
     }
 
@@ -140,7 +157,7 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
     }
 
     private func playSynthChime() {
-        configureBackgroundSpeechAudioSession()
+        guard configureBackgroundSpeechAudioSession() else { return }
         playSineTone(
             frequency: 1320.0,
             duration: 0.13,
@@ -148,7 +165,7 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
         )
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             guard let self else { return }
-            if !self.speechSynthesizer.isSpeaking {
+            if !self.isSplitTrackingActive && !self.speechSynthesizer.isSpeaking {
                 self.deactivateSpeechAudioSession()
             }
         }
@@ -183,10 +200,12 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
         do {
             try engine.start()
         } catch {
+            lastAudioSessionError = "chime engine: \(error.localizedDescription)"
             NSLog("Failed to start chime engine: \(error.localizedDescription)")
             return
         }
 
+        NSLog("[iOS Split TTS] play chime")
         chimeEngine = engine
         chimeNode = node
         node.scheduleBuffer(buffer, at: nil, options: .interrupts) { [weak self] in
@@ -253,12 +272,6 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
                     isPaused: isPaused,
                     countdownEndDate: nil
                 )
-                configureSplitTracking(
-                    runID: runID,
-                    elapsedSeconds: elapsedSeconds,
-                    distanceMeters: distanceMeters,
-                    isPaused: isPaused
-                )
                 if UIApplication.shared.applicationState != .active && !isPaused && elapsedSeconds <= 1 {
                     playSynthChime()
                 }
@@ -303,12 +316,6 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
                 isPaused: isPaused,
                 countdownEndDate: nil
             )
-            updateSplitTracking(
-                runID: runID,
-                elapsedSeconds: elapsedSeconds,
-                distanceMeters: distanceMeters,
-                isPaused: isPaused
-            )
             result(nil)
         }
     }
@@ -334,26 +341,144 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
             }
 
             await RunLiveActivityManager.end(runID: runID, status: status)
-            stopSplitTracking()
             result(nil)
         }
+    }
+
+    private struct SplitTrackingPayload {
+        let runID: String
+        let elapsedSeconds: Int
+        let distanceMeters: Double
+        let isPaused: Bool
+        let lastAnnouncedSplitKm: Int
+        let lastAnnouncedSplitElapsedSeconds: Int
+        let lifecycleState: String
+    }
+
+    private func parseSplitTrackingPayload(_ arguments: Any?) -> SplitTrackingPayload? {
+        guard let args = arguments as? [String: Any],
+              let runID = args["runId"] as? String,
+              let elapsedSeconds = (args["elapsedSeconds"] as? NSNumber)?.intValue ?? args["elapsedSeconds"] as? Int else {
+            return nil
+        }
+
+        let distanceMeters = (args["distanceMeters"] as? NSNumber)?.doubleValue
+            ?? args["distanceMeters"] as? Double
+            ?? 0
+        let isPaused = (args["isPaused"] as? NSNumber)?.boolValue
+            ?? args["isPaused"] as? Bool
+            ?? false
+        let lastAnnouncedSplitKm = (args["lastAnnouncedSplitKm"] as? NSNumber)?.intValue
+            ?? args["lastAnnouncedSplitKm"] as? Int
+            ?? 0
+        let lastAnnouncedSplitElapsedSeconds = (args["lastAnnouncedSplitElapsedSeconds"] as? NSNumber)?.intValue
+            ?? args["lastAnnouncedSplitElapsedSeconds"] as? Int
+            ?? 0
+        let lifecycleState = args["lifecycleState"] as? String ?? "unknown"
+
+        return SplitTrackingPayload(
+            runID: runID,
+            elapsedSeconds: elapsedSeconds,
+            distanceMeters: distanceMeters,
+            isPaused: isPaused,
+            lastAnnouncedSplitKm: lastAnnouncedSplitKm,
+            lastAnnouncedSplitElapsedSeconds: lastAnnouncedSplitElapsedSeconds,
+            lifecycleState: lifecycleState
+        )
+    }
+
+    private func startIosSplitTracking(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let payload = parseSplitTrackingPayload(call.arguments) else {
+            result(FlutterError(code: "invalid_args", message: "Missing required startIosSplitTracking arguments.", details: nil))
+            return
+        }
+
+        configureSplitTracking(
+            runID: payload.runID,
+            elapsedSeconds: payload.elapsedSeconds,
+            distanceMeters: payload.distanceMeters,
+            isPaused: payload.isPaused,
+            lastAnnouncedSplitKm: payload.lastAnnouncedSplitKm,
+            lastAnnouncedSplitElapsedSeconds: payload.lastAnnouncedSplitElapsedSeconds
+        )
+        NSLog("[iOS Split TTS] start tracking runId=\(payload.runID) distance=\(payload.distanceMeters) elapsed=\(payload.elapsedSeconds) lifecycle=\(payload.lifecycleState)")
+        result(nil)
+    }
+
+    private func updateIosSplitTracking(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let payload = parseSplitTrackingPayload(call.arguments) else {
+            result(FlutterError(code: "invalid_args", message: "Missing required updateIosSplitTracking arguments.", details: nil))
+            return
+        }
+
+        updateSplitTracking(
+            runID: payload.runID,
+            elapsedSeconds: payload.elapsedSeconds,
+            distanceMeters: payload.distanceMeters,
+            isPaused: payload.isPaused,
+            lastAnnouncedSplitKm: payload.lastAnnouncedSplitKm,
+            lastAnnouncedSplitElapsedSeconds: payload.lastAnnouncedSplitElapsedSeconds
+        )
+        result(nil)
+    }
+
+    private func stopIosSplitTracking(result: @escaping FlutterResult) {
+        NSLog("[iOS Split TTS] stop tracking runId=\(trackingRunID ?? "nil")")
+        stopSplitTracking()
+        result(nil)
+    }
+
+    private func getIosSplitTrackingStatus(result: @escaping FlutterResult) {
+        let status: CLAuthorizationStatus
+        if #available(iOS 14.0, *) {
+            status = locationManager.authorizationStatus
+        } else {
+            status = CLLocationManager.authorizationStatus()
+        }
+
+        result([
+            "runId": channelValue(trackingRunID),
+            "isTracking": isSplitTrackingActive,
+            "isPaused": trackingIsPaused,
+            "trackingDistanceMeters": trackingDistanceMeters,
+            "lastSyncedFlutterDistanceMeters": lastSyncedFlutterDistanceMeters,
+            "lastAnnouncedSplitKm": lastAnnouncedSplitKm,
+            "lastAnnouncedSplitElapsedSeconds": lastAnnouncedSplitElapsedSeconds,
+            "lastNativeLocationUpdateAt": channelValue(lastNativeLocationUpdateAt?.timeIntervalSince1970),
+            "lastSplitAnnouncementAt": channelValue(lastSplitAnnouncementAt?.timeIntervalSince1970),
+            "authorizationStatus": authorizationStatusDescription(status),
+            "lastAudioSessionError": channelValue(lastAudioSessionError),
+            "lastLocationError": channelValue(lastLocationError)
+        ])
+    }
+
+    private func channelValue(_ value: Any?) -> Any {
+        value ?? NSNull()
     }
 
     private func configureSplitTracking(
         runID: String,
         elapsedSeconds: Int,
         distanceMeters: Double,
-        isPaused: Bool
+        isPaused: Bool,
+        lastAnnouncedSplitKm: Int,
+        lastAnnouncedSplitElapsedSeconds: Int
     ) {
+        isSplitTrackingActive = true
         trackingRunID = runID
         trackingDistanceMeters = max(0, distanceMeters)
+        lastSyncedFlutterDistanceMeters = max(0, distanceMeters)
         trackingStartedAt = Date().addingTimeInterval(-TimeInterval(max(0, elapsedSeconds)))
         trackingPausedDuration = 0
         trackingPausedAt = isPaused ? Date() : nil
         trackingIsPaused = isPaused
         lastLocation = nil
-        lastAnnouncedSplitKm = Int((trackingDistanceMeters / 1000.0).rounded(.down))
-        lastAnnouncedSplitElapsedSeconds = max(0, elapsedSeconds)
+        self.lastAnnouncedSplitKm = max(0, lastAnnouncedSplitKm)
+        self.lastAnnouncedSplitElapsedSeconds = max(0, lastAnnouncedSplitElapsedSeconds)
+        lastNativeLocationUpdateAt = nil
+        lastSplitAnnouncementAt = nil
+        lastAudioSessionError = nil
+        lastLocationError = nil
 
         let status: CLAuthorizationStatus
         if #available(iOS 14.0, *) {
@@ -361,10 +486,10 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
         } else {
             status = CLLocationManager.authorizationStatus()
         }
+        NSLog("[iOS Split TTS] authorization status=\(authorizationStatusDescription(status))")
         if status == .notDetermined || status == .authorizedWhenInUse {
             locationManager.requestAlwaysAuthorization()
         }
-        configureBackgroundSpeechAudioSession()
         locationManager.startUpdatingLocation()
     }
 
@@ -372,19 +497,30 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
         runID: String,
         elapsedSeconds: Int,
         distanceMeters: Double,
-        isPaused: Bool
+        isPaused: Bool,
+        lastAnnouncedSplitKm: Int,
+        lastAnnouncedSplitElapsedSeconds: Int
     ) {
         guard trackingRunID == runID else {
             configureSplitTracking(
                 runID: runID,
                 elapsedSeconds: elapsedSeconds,
                 distanceMeters: distanceMeters,
-                isPaused: isPaused
+                isPaused: isPaused,
+                lastAnnouncedSplitKm: lastAnnouncedSplitKm,
+                lastAnnouncedSplitElapsedSeconds: lastAnnouncedSplitElapsedSeconds
             )
             return
         }
 
+        isSplitTrackingActive = true
+        lastSyncedFlutterDistanceMeters = max(lastSyncedFlutterDistanceMeters, distanceMeters)
         trackingDistanceMeters = max(trackingDistanceMeters, distanceMeters)
+        self.lastAnnouncedSplitKm = max(self.lastAnnouncedSplitKm, lastAnnouncedSplitKm)
+        self.lastAnnouncedSplitElapsedSeconds = max(
+            self.lastAnnouncedSplitElapsedSeconds,
+            lastAnnouncedSplitElapsedSeconds
+        )
         if trackingStartedAt == nil {
             trackingStartedAt = Date().addingTimeInterval(-TimeInterval(max(0, elapsedSeconds)))
         }
@@ -397,13 +533,16 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
             }
             trackingIsPaused = isPaused
         }
+        maybeAnnounceSplit()
     }
 
     private func stopSplitTracking() {
         endCountdownBackgroundTaskInternal()
         locationManager.stopUpdatingLocation()
+        isSplitTrackingActive = false
         trackingRunID = nil
         trackingDistanceMeters = 0
+        lastSyncedFlutterDistanceMeters = 0
         trackingStartedAt = nil
         trackingPausedDuration = 0
         trackingPausedAt = nil
@@ -411,6 +550,10 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
         lastLocation = nil
         lastAnnouncedSplitKm = 0
         lastAnnouncedSplitElapsedSeconds = 0
+        lastNativeLocationUpdateAt = nil
+        lastSplitAnnouncementAt = nil
+        lastAudioSessionError = nil
+        lastLocationError = nil
         speechSynthesizer.stopSpeaking(at: .immediate)
         deactivateSpeechAudioSession()
         chimeNode?.stop()
@@ -430,46 +573,59 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
     }
 
     private func maybeAnnounceSplit() {
+        guard isSplitTrackingActive else { return }
         if UIApplication.shared.applicationState == .active {
             return
         }
-        let completedKm = Int((trackingDistanceMeters / 1000.0).rounded(.down))
+        let completedKm = Int((trackingDistanceMeters / Self.splitAnnouncementDistanceMeters).rounded(.down))
         guard completedKm > lastAnnouncedSplitKm else { return }
         let elapsedNow = effectiveElapsedSeconds()
         let splitDuration = max(0, elapsedNow - lastAnnouncedSplitElapsedSeconds)
+        let splitPaceSeconds = Self.splitAnnouncementDistanceMeters > 0
+            ? Int((Double(splitDuration) / (Self.splitAnnouncementDistanceMeters / 1000.0)).rounded())
+            : 0
+        let splitText = formatSplitPaceKorean(splitPaceSeconds)
+        let announcedMeters = Int((Double(completedKm) * Self.splitAnnouncementDistanceMeters).rounded())
+        let speech = "\(announcedMeters)미터, 구간 페이스 \(splitText)"
+        NSLog("[iOS Split TTS] announce split km=\(completedKm) distance=\(trackingDistanceMeters) elapsed=\(elapsedNow)")
+        guard speakSplitAnnouncement(speech) else { return }
         lastAnnouncedSplitKm = completedKm
         lastAnnouncedSplitElapsedSeconds = elapsedNow
-
-        let splitText = formatSplitPaceKorean(splitDuration)
-        let speech = "\(completedKm)킬로미터, 구간 페이스 \(splitText)"
-        speakSplitAnnouncement(speech)
+        lastSplitAnnouncementAt = Date()
     }
 
-    private func speakSplitAnnouncement(_ speech: String) {
-        playSplitChime(result: { _ in })
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
+    private func speakSplitAnnouncement(_ speech: String) -> Bool {
+        guard configureBackgroundSpeechAudioSession() else { return false }
+        DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.configureBackgroundSpeechAudioSession()
+            self.playSplitChime(result: { _ in })
             let utterance = AVSpeechUtterance(string: speech)
             utterance.voice = AVSpeechSynthesisVoice(language: "ko-KR")
             utterance.rate = 0.46
             utterance.pitchMultiplier = 1.0
-            self.speechSynthesizer.stopSpeaking(at: .immediate)
+            NSLog("[iOS Split TTS] speak start text=\(speech)")
             self.speechSynthesizer.speak(utterance)
         }
+        return true
     }
 
-    private func configureBackgroundSpeechAudioSession() {
+    @discardableResult
+    private func configureBackgroundSpeechAudioSession() -> Bool {
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(
                 .playback,
                 mode: .default,
-                options: [.mixWithOthers, .duckOthers, .interruptSpokenAudioAndMixWithOthers, .allowBluetooth, .allowBluetoothA2DP]
+                options: [.mixWithOthers]
             )
             try session.setActive(true)
+            lastAudioSessionError = nil
+            NSLog("[iOS Split TTS] audio session active")
+            return true
         } catch {
+            lastAudioSessionError = error.localizedDescription
             NSLog("Failed to configure AVAudioSession for background speech: \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -482,6 +638,23 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
         }
     }
 
+    private func authorizationStatusDescription(_ status: CLAuthorizationStatus) -> String {
+        switch status {
+        case .notDetermined:
+            return "notDetermined"
+        case .restricted:
+            return "restricted"
+        case .denied:
+            return "denied"
+        case .authorizedAlways:
+            return "authorizedAlways"
+        case .authorizedWhenInUse:
+            return "authorizedWhenInUse"
+        @unknown default:
+            return "unknown"
+        }
+    }
+
     private func formatSplitPaceKorean(_ secondsPerKm: Int) -> String {
         guard secondsPerKm > 0 else { return "측정 불가" }
         let minutes = secondsPerKm / 60
@@ -490,11 +663,12 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard trackingRunID != nil, !trackingIsPaused else { return }
+        guard isSplitTrackingActive, trackingRunID != nil, !trackingIsPaused else { return }
         for location in locations {
             if location.horizontalAccuracy < 0 || location.horizontalAccuracy > 25 {
                 continue
             }
+            lastNativeLocationUpdateAt = location.timestamp
             guard let previous = lastLocation else {
                 lastLocation = location
                 continue
@@ -517,14 +691,17 @@ final class RunLiveActivityPlugin: NSObject, FlutterPlugin, CLLocationManagerDel
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        lastLocationError = error.localizedDescription
         NSLog("Run split location update failed: \(error.localizedDescription)")
     }
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        NSLog("[iOS Split TTS] speech finished")
         deactivateSpeechAudioSession()
     }
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        NSLog("[iOS Split TTS] speech cancelled")
         deactivateSpeechAudioSession()
     }
 }

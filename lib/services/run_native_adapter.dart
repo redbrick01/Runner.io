@@ -48,7 +48,6 @@ class RunNativeAdapter {
         IosTextToSpeechAudioCategory.playback,
         const [
           IosTextToSpeechAudioCategoryOptions.mixWithOthers,
-          IosTextToSpeechAudioCategoryOptions.duckOthers,
           IosTextToSpeechAudioCategoryOptions.allowBluetooth,
           IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
         ],
@@ -61,7 +60,7 @@ class RunNativeAdapter {
     await _splitTts.setLanguage('ko-KR');
     await _splitTts.setSpeechRate(0.48);
     await _splitTts.setPitch(1.0);
-    await _splitTts.awaitSpeakCompletion(false);
+    await _splitTts.awaitSpeakCompletion(true);
     _isSplitTtsConfigured = true;
   }
 
@@ -90,6 +89,10 @@ class RunNativeAdapter {
   }
 
   Future<void> speakSplit(String speech) async {
+    if (Platform.isIOS) {
+      await invoke<void>('announceSplitInBackground', {'speech': speech});
+      return;
+    }
     await configureSplitTts();
     await playSplitChime();
     await _splitTts.stop();

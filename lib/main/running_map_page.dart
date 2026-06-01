@@ -8,6 +8,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../app_colors.dart';
 import '../design/app_design.dart';
+import '../services/live_run_coaching_service.dart';
+import '../services/live_run_coaching_settings.dart';
 import '../services/run_native_adapter.dart';
 import '../services/run_service.dart';
 import '../services/run_save_payload.dart';
@@ -51,6 +53,8 @@ class _RunningMapPageState extends State<RunningMapPage>
   bool _isFinishingRun = false;
   bool _isFollowingUser = false;
   bool _isAppInForeground = true;
+  bool _iosSplitTrackingActive = false;
+  bool _iosSplitTrackingStatusSyncInFlight = false;
   bool _hasAutoCenteredInitially = false;
   bool _hasUserInteractedWithMap = false;
   bool _isProgrammaticCameraMove = false;
@@ -386,8 +390,16 @@ class _RunningMapPageState extends State<RunningMapPage>
   final Map<String, BitmapDescriptor> _nicknameCache = {};
   BitmapDescriptor? _currentLocationIcon;
   final RunNativeAdapter _nativeAdapter = RunNativeAdapter();
+  static const double _splitAnnouncementDistanceMeters = 500.0;
   int _lastAnnouncedSplitKm = 0;
+  int? _splitAnnouncementInFlightKm;
   int _lastAnnouncedSplitElapsedSeconds = 0;
+  double _lastAnnouncedSplitAscentMeters = 0;
+  int _pauseCount = 0;
+  int _liveCoachingRequestToken = 0;
+  final List<double> _liveSplitPaceHistory = [];
+  final List<String> _recentLiveCoachingCategories = [];
+  bool _aiPaceCoachEnabled = true;
   bool _iosCountdownBackgroundTaskActive = false;
 
   // 구글 지도 커스텀 스타일 (POI 아이콘 제거됨)
@@ -449,6 +461,7 @@ class _RunningMapPageState extends State<RunningMapPage>
     }());
     _consumePendingLiveActivityAction();
     unawaited(_configureSplitTts());
+    unawaited(_loadLiveCoachingSettings());
   }
 
   @override
@@ -466,9 +479,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   Future<void> _beginIosCountdownBackgroundTask() async {
     if (!Platform.isIOS || _iosCountdownBackgroundTaskActive) return;
     try {
-      await _nativeAdapter.invoke<void>(
-        'beginCountdownBackgroundTask',
-      );
+      await _nativeAdapter.invoke<void>('beginCountdownBackgroundTask');
       _iosCountdownBackgroundTaskActive = true;
     } catch (e) {
       debugPrint('iOS countdown background task start failed: $e');
@@ -478,9 +489,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   Future<void> _endIosCountdownBackgroundTask() async {
     if (!Platform.isIOS || !_iosCountdownBackgroundTaskActive) return;
     try {
-      await _nativeAdapter.invoke<void>(
-        'endCountdownBackgroundTask',
-      );
+      await _nativeAdapter.invoke<void>('endCountdownBackgroundTask');
     } catch (e) {
       debugPrint('iOS countdown background task end failed: $e');
     } finally {
@@ -493,6 +502,19 @@ class _RunningMapPageState extends State<RunningMapPage>
       await _nativeAdapter.configureSplitTts();
     } catch (e) {
       debugPrint('Split TTS configure failed: $e');
+    }
+  }
+
+  Future<void> _loadLiveCoachingSettings() async {
+    try {
+      final enabled = await LiveRunCoachingSettings.instance.isEnabled();
+      if (mounted) {
+        setState(() => _aiPaceCoachEnabled = enabled);
+      } else {
+        _aiPaceCoachEnabled = enabled;
+      }
+    } catch (e) {
+      debugPrint('Live coaching setting load failed: $e');
     }
   }
 
@@ -510,45 +532,318 @@ class _RunningMapPageState extends State<RunningMapPage>
     await _nativeAdapter.playRunStartEffect();
   }
 
+  String get _appLifecycleStateName =>
+      _isAppInForeground ? 'resumed' : 'background';
+
+  bool get _shouldLetNativeHandleSplitAnnouncement =>
+      Platform.isIOS && !_isAppInForeground && _iosSplitTrackingActive;
+
+  Map<String, dynamic>? _iosSplitTrackingPayload({
+    required String lifecycleState,
+    String? reason,
+  }) {
+    final runId = _currentRunId;
+    if (runId == null) return null;
+
+    final payload = {
+      'runId': runId,
+      'elapsedSeconds': _seconds,
+      'distanceMeters': _totalDistance,
+      'isPaused': _isPaused,
+      'lastAnnouncedSplitKm': _lastAnnouncedSplitKm,
+      'lastAnnouncedSplitElapsedSeconds': _lastAnnouncedSplitElapsedSeconds,
+      'lifecycleState': lifecycleState,
+    };
+    if (reason != null) {
+      payload['reason'] = reason;
+    }
+    return payload;
+  }
+
+  Future<void> _startIosSplitTracking() async {
+    if (!Platform.isIOS) return;
+    final payload = _iosSplitTrackingPayload(
+      lifecycleState: _appLifecycleStateName,
+      reason: 'start',
+    );
+    if (payload == null) return;
+
+    try {
+      await _nativeAdapter.invoke<void>('startIosSplitTracking', payload);
+      _iosSplitTrackingActive = true;
+    } catch (e) {
+      _iosSplitTrackingActive = false;
+      debugPrint('iOS split tracking start failed: $e');
+    }
+  }
+
+  Future<void> _updateIosSplitTracking({required String reason}) async {
+    if (!Platform.isIOS || !_iosSplitTrackingActive) return;
+    final payload = _iosSplitTrackingPayload(
+      lifecycleState: _appLifecycleStateName,
+      reason: reason,
+    );
+    if (payload == null) return;
+
+    try {
+      await _nativeAdapter.invoke<void>('updateIosSplitTracking', payload);
+    } catch (e) {
+      debugPrint('iOS split tracking update failed ($reason): $e');
+    }
+  }
+
+  Future<void> _stopIosSplitTracking({required String reason}) async {
+    if (!Platform.isIOS) return;
+    try {
+      await _nativeAdapter.invoke<void>('stopIosSplitTracking', {
+        'reason': reason,
+      });
+    } catch (e) {
+      debugPrint('iOS split tracking stop failed ($reason): $e');
+    } finally {
+      _iosSplitTrackingActive = false;
+    }
+  }
+
+  Future<void> _syncIosSplitTrackingStatus() async {
+    if (!Platform.isIOS ||
+        !_iosSplitTrackingActive ||
+        _iosSplitTrackingStatusSyncInFlight) {
+      return;
+    }
+
+    _iosSplitTrackingStatusSyncInFlight = true;
+    try {
+      final result = await _nativeAdapter.invoke<dynamic>(
+        'getIosSplitTrackingStatus',
+      );
+      if (result is! Map) return;
+      final status = Map<String, dynamic>.from(result);
+      final rawRunId = status['runId'];
+      final runId = rawRunId is String ? rawRunId : null;
+      if (runId == null || runId != _currentRunId) return;
+
+      final rawNativeSplitKm = status['lastAnnouncedSplitKm'];
+      final rawNativeSplitElapsed = status['lastAnnouncedSplitElapsedSeconds'];
+      final nativeSplitKm = rawNativeSplitKm is num
+          ? rawNativeSplitKm.toInt()
+          : 0;
+      final nativeSplitElapsed = rawNativeSplitElapsed is num
+          ? rawNativeSplitElapsed.toInt()
+          : 0;
+      if (nativeSplitKm > _lastAnnouncedSplitKm) {
+        _lastAnnouncedSplitKm = nativeSplitKm;
+        _lastAnnouncedSplitElapsedSeconds = math
+            .max(_lastAnnouncedSplitElapsedSeconds, nativeSplitElapsed)
+            .toInt();
+      }
+    } catch (e) {
+      debugPrint('iOS split tracking status sync failed: $e');
+    } finally {
+      _iosSplitTrackingStatusSyncInFlight = false;
+    }
+  }
+
   Future<void> _announceSplitIfNeeded() async {
     if (!_isStarted || _isPaused) return;
-    final completedKm = (_totalDistance / 1000).floor();
+    final completedKm = (_totalDistance / _splitAnnouncementDistanceMeters)
+        .floor();
     if (completedKm <= _lastAnnouncedSplitKm) return;
+    if (completedKm == _splitAnnouncementInFlightKm) return;
 
     final elapsedNow = _seconds;
     final splitDuration = elapsedNow - _lastAnnouncedSplitElapsedSeconds;
-    final splitPaceSeconds = splitDuration > 0 ? splitDuration.toDouble() : 0.0;
+    final splitPaceSeconds = splitDuration > 0
+        ? splitDuration / (_splitAnnouncementDistanceMeters / 1000.0)
+        : 0.0;
     final splitPaceText = _formatSplitPaceKorean(splitPaceSeconds);
-    final speech = '$completedKm킬로미터, 구간 페이스 $splitPaceText';
+    final announcedMeters = (completedKm * _splitAnnouncementDistanceMeters)
+        .round();
+    final speech = '$announcedMeters미터, 구간 페이스 $splitPaceText';
+    final splitAscentMeters = math.max(
+      0.0,
+      _totalAscent - _lastAnnouncedSplitAscentMeters,
+    );
+    final splitDetectedAt = DateTime.now();
+    final coachingToken = ++_liveCoachingRequestToken;
+    final previousSplitPaces = List<double>.from(_liveSplitPaceHistory);
 
-    _lastAnnouncedSplitKm = completedKm;
-    _lastAnnouncedSplitElapsedSeconds = elapsedNow;
+    void markSplitAnnouncementDispatched() {
+      _lastAnnouncedSplitKm = completedKm;
+      _lastAnnouncedSplitElapsedSeconds = elapsedNow;
+      _lastAnnouncedSplitAscentMeters = _totalAscent;
+      if (splitPaceSeconds > 0) {
+        _liveSplitPaceHistory.add(splitPaceSeconds);
+        if (_liveSplitPaceHistory.length > 12) {
+          _liveSplitPaceHistory.removeAt(0);
+        }
+      }
+    }
 
+    _splitAnnouncementInFlightKm = completedKm;
     try {
+      if (_shouldLetNativeHandleSplitAnnouncement) {
+        await _updateIosSplitTracking(reason: 'dart_split_detected_background');
+        markSplitAnnouncementDispatched();
+        unawaited(
+          _requestLiveCoachingForSplit(
+            completedKm: completedKm,
+            elapsedSeconds: elapsedNow,
+            splitDurationSeconds: splitDuration.toDouble(),
+            splitPaceSeconds: splitPaceSeconds,
+            splitAscentMeters: splitAscentMeters,
+            previousSplitPaces: previousSplitPaces,
+            splitDetectedAt: splitDetectedAt,
+            token: coachingToken,
+            allowBackground: true,
+          ),
+        );
+        return;
+      }
       if (!_isAppInForeground) {
         if (Platform.isAndroid) {
           await _nativeAdapter.invoke<void>(
             'announceSplitInBackground',
             speech,
           );
+          markSplitAnnouncementDispatched();
           return;
         }
         if (Platform.isIOS) {
-          await _nativeAdapter.invoke<void>(
-            'announceSplitInBackground',
-            {
-              'speech': speech,
-              'completedKm': completedKm,
-              'elapsedSeconds': elapsedNow,
-            },
-          );
+          await _nativeAdapter.invoke<void>('announceSplitInBackground', {
+            'speech': speech,
+            'completedKm': completedKm,
+            'elapsedSeconds': elapsedNow,
+          });
+          markSplitAnnouncementDispatched();
           return;
         }
       }
       await _nativeAdapter.speakSplit(speech);
+      markSplitAnnouncementDispatched();
+      unawaited(
+        _requestLiveCoachingForSplit(
+          completedKm: completedKm,
+          elapsedSeconds: elapsedNow,
+          splitDurationSeconds: splitDuration.toDouble(),
+          splitPaceSeconds: splitPaceSeconds,
+          splitAscentMeters: splitAscentMeters,
+          previousSplitPaces: previousSplitPaces,
+          splitDetectedAt: splitDetectedAt,
+          token: coachingToken,
+        ),
+      );
+      unawaited(_updateIosSplitTracking(reason: 'foreground_split_announced'));
     } catch (e) {
       debugPrint('Split TTS speak failed: $e');
+    } finally {
+      if (_splitAnnouncementInFlightKm == completedKm) {
+        _splitAnnouncementInFlightKm = null;
+      }
     }
+  }
+
+  Future<void> _requestLiveCoachingForSplit({
+    required int completedKm,
+    required int elapsedSeconds,
+    required double splitDurationSeconds,
+    required double splitPaceSeconds,
+    required double splitAscentMeters,
+    required List<double> previousSplitPaces,
+    required DateTime splitDetectedAt,
+    required int token,
+    bool allowBackground = false,
+  }) async {
+    if (!_aiPaceCoachEnabled) return;
+    if (!allowBackground && !_isAppInForeground) return;
+    if (splitPaceSeconds <= 0 || _totalDistance < 10) return;
+
+    final averagePaceSeconds = _seconds > 0 && _totalDistance > 0
+        ? _seconds / (_totalDistance / 1000)
+        : splitPaceSeconds;
+    final runSessionId =
+        _currentRunId ??
+        _startTime?.millisecondsSinceEpoch.toString() ??
+        'live-${DateTime.now().millisecondsSinceEpoch}';
+
+    LiveRunCoachingResponse? response;
+    try {
+      response = await LiveRunCoachingService.instance.generateCoaching(
+        LiveRunCoachingRequest(
+          runSessionId: runSessionId,
+          completedKm: completedKm,
+          elapsedSeconds: elapsedSeconds,
+          distanceMeters: _totalDistance,
+          splitDurationSeconds: splitDurationSeconds,
+          splitPaceSeconds: splitPaceSeconds,
+          averagePaceSeconds: averagePaceSeconds,
+          previousSplitPaces: previousSplitPaces,
+          currentSpeedKmh: _currentSpeed > 0 ? _currentSpeed * 3.6 : null,
+          ascentThisSplitMeters: splitAscentMeters,
+          pauseCount: _pauseCount,
+          recentCoachingCategories: List<String>.from(
+            _recentLiveCoachingCategories,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Live run coaching failed: $e');
+      return;
+    }
+
+    final coaching = response?.coachingMessage.trim();
+    if (coaching == null || coaching.isEmpty) return;
+    if (!_canPlayLiveCoaching(
+      completedKm,
+      splitDetectedAt,
+      token,
+      allowBackground: allowBackground,
+    )) {
+      return;
+    }
+
+    final elapsedSinceSplit = DateTime.now().difference(splitDetectedAt);
+    final baseSpeechGap = const Duration(milliseconds: 3200);
+    if (elapsedSinceSplit < baseSpeechGap) {
+      await Future<void>.delayed(baseSpeechGap - elapsedSinceSplit);
+    }
+    if (!_canPlayLiveCoaching(
+      completedKm,
+      splitDetectedAt,
+      token,
+      allowBackground: allowBackground,
+    )) {
+      return;
+    }
+
+    try {
+      await _nativeAdapter.speakSplit(coaching);
+      final category = response?.coachingCategory.trim();
+      if (category != null && category.isNotEmpty) {
+        _recentLiveCoachingCategories.add(category);
+        if (_recentLiveCoachingCategories.length > 4) {
+          _recentLiveCoachingCategories.removeAt(0);
+        }
+      }
+    } catch (e) {
+      debugPrint('Live run coaching TTS failed: $e');
+    }
+  }
+
+  bool _canPlayLiveCoaching(
+    int completedKm,
+    DateTime splitDetectedAt,
+    int token, {
+    bool allowBackground = false,
+  }) {
+    if (!_aiPaceCoachEnabled || !_isStarted || _isPaused) {
+      return false;
+    }
+    if (!allowBackground && !_isAppInForeground) return false;
+    if (token != _liveCoachingRequestToken) return false;
+    if (_lastAnnouncedSplitKm != completedKm) return false;
+    return DateTime.now().difference(splitDetectedAt) <=
+        const Duration(seconds: 12);
   }
 
   @override
@@ -573,6 +868,7 @@ class _RunningMapPageState extends State<RunningMapPage>
       _tickCountdown();
       if (_isStarted) {
         unawaited(_updateLiveActivity());
+        unawaited(_syncIosSplitTrackingStatus());
       }
       unawaited(_consumePendingLiveActivityAction());
     } else if (state == AppLifecycleState.inactive ||
@@ -580,6 +876,8 @@ class _RunningMapPageState extends State<RunningMapPage>
       if (_isStarted) {
         if (Platform.isAndroid) {
           unawaited(_startAndroidBackgroundTracking());
+        } else if (Platform.isIOS) {
+          unawaited(_updateIosSplitTracking(reason: state.name));
         }
       } else if (_isCountdownActive && Platform.isIOS) {
         _completeCountdown();
@@ -622,16 +920,16 @@ class _RunningMapPageState extends State<RunningMapPage>
 
     try {
       await _nativeAdapter.invoke<void>('startAndroidBackgroundTracking', {
-            'runId': _currentRunId,
-            'title': '러닝 중',
-            'elapsedSeconds': _seconds,
-            'distanceMeters': _totalDistance,
-            'totalAscentMeters': _totalAscent,
-            'paceText': _calculatePace(),
-            'isPaused': _isPaused,
-            'routePointsJson': jsonEncode(
-              _routePointSamples.map((point) => point.toJson()).toList(),
-            ),
+        'runId': _currentRunId,
+        'title': '러닝 중',
+        'elapsedSeconds': _seconds,
+        'distanceMeters': _totalDistance,
+        'totalAscentMeters': _totalAscent,
+        'paceText': _calculatePace(),
+        'isPaused': _isPaused,
+        'routePointsJson': jsonEncode(
+          _routePointSamples.map((point) => point.toJson()).toList(),
+        ),
       });
     } catch (e) {
       debugPrint('Android background tracking start failed: $e');
@@ -644,9 +942,7 @@ class _RunningMapPageState extends State<RunningMapPage>
     }
 
     try {
-      await _nativeAdapter.invoke<void>(
-        'stopAndroidBackgroundTracking',
-      );
+      await _nativeAdapter.invoke<void>('stopAndroidBackgroundTracking');
     } catch (e) {
       debugPrint('Android background tracking stop failed: $e');
     }
@@ -696,7 +992,8 @@ class _RunningMapPageState extends State<RunningMapPage>
       if (!mounted) {
         return;
       }
-      _lastAnnouncedSplitKm = (_totalDistance / 1000).floor();
+      _lastAnnouncedSplitKm =
+          (_totalDistance / _splitAnnouncementDistanceMeters).floor();
       _lastAnnouncedSplitElapsedSeconds = _seconds;
       setState(() {
         _polylines.clear();
@@ -729,6 +1026,7 @@ class _RunningMapPageState extends State<RunningMapPage>
       if (!_isPaused) {
         _refreshRunningMetrics();
         unawaited(_updateLiveActivity());
+        unawaited(_updateIosSplitTracking(reason: 'timer_tick'));
       }
     });
   }
@@ -860,10 +1158,12 @@ class _RunningMapPageState extends State<RunningMapPage>
     }
 
     setState(() {
+      _pauseCount++;
       _session.pause();
     });
     _refreshRunningMetrics();
     _followCurrentLocationIfRunning();
+    unawaited(_updateIosSplitTracking(reason: 'pause'));
     unawaited(_updateLiveActivity());
   }
 
@@ -1525,6 +1825,9 @@ class _RunningMapPageState extends State<RunningMapPage>
                   if (accepted) {
                     _updatePolylines();
                     unawaited(_updateLiveActivity());
+                    unawaited(
+                      _updateIosSplitTracking(reason: 'position_accepted'),
+                    );
                     unawaited(_announceSplitIfNeeded());
                   }
                 }
@@ -1575,6 +1878,11 @@ class _RunningMapPageState extends State<RunningMapPage>
   void _startRunning() {
     _lastAnnouncedSplitKm = 0;
     _lastAnnouncedSplitElapsedSeconds = 0;
+    _lastAnnouncedSplitAscentMeters = 0;
+    _pauseCount = 0;
+    _liveCoachingRequestToken++;
+    _liveSplitPaceHistory.clear();
+    _recentLiveCoachingCategories.clear();
     _startCountdown(isResuming: false);
   }
 
@@ -1667,10 +1975,13 @@ class _RunningMapPageState extends State<RunningMapPage>
     });
 
     _refreshRunningMetrics();
-    _lastAnnouncedSplitKm = (_totalDistance / 1000).floor();
+    _lastAnnouncedSplitKm = (_totalDistance / _splitAnnouncementDistanceMeters)
+        .floor();
     _lastAnnouncedSplitElapsedSeconds = _seconds;
+    _lastAnnouncedSplitAscentMeters = _totalAscent;
     _followCurrentLocationIfRunning();
     _ensureRunningTimer();
+    unawaited(_updateIosSplitTracking(reason: 'resume'));
     unawaited(_updateLiveActivity());
   }
 
@@ -1684,9 +1995,14 @@ class _RunningMapPageState extends State<RunningMapPage>
       _isFollowingUser = true;
       _session.beginRun(currentPosition: _currentPosition);
     });
+    _lastAnnouncedSplitAscentMeters = 0;
+    _pauseCount = 0;
+    _liveSplitPaceHistory.clear();
+    _recentLiveCoachingCategories.clear();
 
     _followCurrentLocationIfRunning();
     _ensureRunningTimer();
+    unawaited(_startIosSplitTracking());
     unawaited(_startLiveActivity());
   }
 
@@ -1974,14 +2290,13 @@ class _RunningMapPageState extends State<RunningMapPage>
         _session.pause();
         _refreshRunningMetrics();
         _ensureRunningTimer();
+        await _updateIosSplitTracking(reason: 'save_failed_pause');
         await _updateLiveActivity();
         setState(() {
           _isFollowingUser = false;
         });
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('러닝 기록 저장에 실패했습니다. 네트워크 확인 후 종료를 다시 눌러주세요.'),
             ),
@@ -1997,6 +2312,7 @@ class _RunningMapPageState extends State<RunningMapPage>
         savedRunData['calories'] = calculatedCalories;
       }
       savedRunData['splits'] = runSplits;
+      await _stopIosSplitTracking(reason: 'ended');
       _startLocationTracking(enableBackgroundUpdates: false);
 
       setState(() {
@@ -2006,6 +2322,11 @@ class _RunningMapPageState extends State<RunningMapPage>
       });
       _lastAnnouncedSplitKm = 0;
       _lastAnnouncedSplitElapsedSeconds = 0;
+      _lastAnnouncedSplitAscentMeters = 0;
+      _pauseCount = 0;
+      _liveCoachingRequestToken++;
+      _liveSplitPaceHistory.clear();
+      _recentLiveCoachingCategories.clear();
 
       if (mounted) {
         if (calculatedCalories == null) {
@@ -2035,6 +2356,7 @@ class _RunningMapPageState extends State<RunningMapPage>
         await _stopAndroidBackgroundTracking();
       }
       await _endLiveActivity('cancelled');
+      await _stopIosSplitTracking(reason: 'cancelled');
       _startLocationTracking(enableBackgroundUpdates: false);
       setState(() {
         _isFollowingUser = false;
@@ -2043,6 +2365,11 @@ class _RunningMapPageState extends State<RunningMapPage>
       });
       _lastAnnouncedSplitKm = 0;
       _lastAnnouncedSplitElapsedSeconds = 0;
+      _lastAnnouncedSplitAscentMeters = 0;
+      _pauseCount = 0;
+      _liveCoachingRequestToken++;
+      _liveSplitPaceHistory.clear();
+      _recentLiveCoachingCategories.clear();
       return;
     }
 
