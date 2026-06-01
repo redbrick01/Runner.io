@@ -13,9 +13,25 @@ type TerritoryRpcArgs = {
   in_maxy: number | null;
 };
 
+type UserTerritoryRpcArgs = TerritoryRpcArgs & {
+  in_user_ids: string[];
+};
+
+type CrewTerritoryRpcArgs = TerritoryRpcArgs & {
+  in_crew_id: string;
+};
+
 type TerritoryRow = {
   user_id: string;
   nick_name: string | null;
+  color_hex: string | null;
+  area: number | null;
+  geom_json: string;
+};
+
+type CrewTerritoryRow = {
+  crew_id: string;
+  name: string;
   color_hex: string | null;
   area: number | null;
   geom_json: string;
@@ -47,7 +63,6 @@ type CrewContext = {
   id: string;
   name: string;
   colorHex: string | null;
-  memberIds: string[];
 };
 
 type GeoJsonGeometry = {
@@ -201,34 +216,6 @@ async function fetchCrewById(
   return { crew: data as CrewRow | null };
 }
 
-async function fetchCrewMemberIds(
-  supabase: SupabaseClient,
-  crewId: string,
-): Promise<{ userIds: string[] } | { response: Response }> {
-  const { data, error } = await supabase
-    .from("crew_members")
-    .select("user_id")
-    .eq("crew_id", crewId)
-    .is("left_at", null);
-
-  if (error) {
-    return {
-      response: json(
-        { error: "Failed to fetch crew members", details: error.message },
-        { status: 500 },
-      ),
-    };
-  }
-
-  return {
-    userIds: [
-      ...new Set(((data ?? []) as Array<{ user_id: string }>).map((
-        row,
-      ) => row.user_id)),
-    ],
-  };
-}
-
 function compareCrewMembership(a: CrewMemberRow, b: CrewMemberRow): number {
   if (a.is_default_contribution !== b.is_default_contribution) {
     return a.is_default_contribution ? -1 : 1;
@@ -319,15 +306,11 @@ async function resolveCrewContext(
       : { crew: null };
   }
 
-  const membersResult = await fetchCrewMemberIds(supabase, selectedCrewId);
-  if ("response" in membersResult) return membersResult;
-
   return {
     crew: {
       id: crewResult.crew.id,
       name: crewResult.crew.name,
       colorHex: crewResult.crew.color_hex,
-      memberIds: membersResult.userIds,
     },
   };
 }
@@ -446,14 +429,14 @@ Deno.serve(async (req) => {
     }
 
     const crewId = params.get("crew_id")?.trim() || null;
-    let allowedUserIds: Set<string> | null = null;
+    let scopedUserIds: string[] | null = null;
     let crewContext: CrewContext | null = null;
     if (scope === "personal") {
-      allowedUserIds = new Set([auth.userId]);
+      scopedUserIds = [auth.userId];
     } else if (scope === "friends") {
       const friendsResult = await fetchAcceptedFriendIds(supabase, auth.userId);
       if ("response" in friendsResult) return friendsResult.response;
-      allowedUserIds = new Set(friendsResult.userIds);
+      scopedUserIds = friendsResult.userIds;
     } else if (scope === "crew") {
       const crewResult = await resolveCrewContext(
         supabase,
@@ -462,7 +445,6 @@ Deno.serve(async (req) => {
       );
       if ("response" in crewResult) return crewResult.response;
       crewContext = crewResult.crew;
-      allowedUserIds = new Set(crewContext?.memberIds ?? []);
     } else if (crewId) {
       return json(
         { error: "crew_id can only be used with scope=crew" },
@@ -472,7 +454,7 @@ Deno.serve(async (req) => {
 
     let rpcArgs: TerritoryRpcArgs = {
       in_srid: srid,
-      in_limit: scope ? 1000 : limit,
+      in_limit: limit,
       in_minx: null,
       in_miny: null,
       in_maxx: null,
@@ -487,17 +469,71 @@ Deno.serve(async (req) => {
         in_maxy: bbox.maxY,
       };
     }
-    const { data, error } = await supabase.rpc(
-      "get_territories_geojson",
-      rpcArgs,
-    );
+
+    if (scope === "crew") {
+      if (!crewContext) {
+        return json({
+          type: "FeatureCollection",
+          features: [],
+        });
+      }
+
+      const crewRpcArgs: CrewTerritoryRpcArgs = {
+        ...rpcArgs,
+        in_crew_id: crewContext.id,
+      };
+      const { data, error } = await supabase.rpc(
+        "get_crew_territories_geojson",
+        crewRpcArgs,
+      );
+      if (error) {
+        console.error("Crew territory RPC error:", error);
+        return json({ error: error.message }, { status: 500 });
+      }
+
+      const features = ((data ?? []) as CrewTerritoryRow[])
+        .map((r) => {
+          const geometry = filterGeometryByBbox(
+            JSON.parse(r.geom_json) as GeoJsonGeometry,
+            bbox,
+          );
+          if (!geometry) return null;
+
+          return {
+            type: "Feature",
+            properties: {
+              user_id: null,
+              owner_type: "crew",
+              owner_id: r.crew_id,
+              nick_name: r.name,
+              color_hex: r.color_hex,
+              area: r.area,
+            },
+            geometry,
+          };
+        })
+        .filter((feature) => feature !== null);
+
+      return json({
+        type: "FeatureCollection",
+        features,
+      });
+    }
+
+    const rpcName = scopedUserIds === null
+      ? "get_territories_geojson"
+      : "get_territories_geojson_for_users";
+    const scopedRpcArgs: TerritoryRpcArgs | UserTerritoryRpcArgs =
+      scopedUserIds === null
+        ? rpcArgs
+        : { ...rpcArgs, in_user_ids: scopedUserIds };
+    const { data, error } = await supabase.rpc(rpcName, scopedRpcArgs);
     if (error) {
       console.error("RPC error:", error);
       return json({ error: error.message }, { status: 500 });
     }
 
     const features = ((data ?? []) as TerritoryRow[])
-      .filter((r) => allowedUserIds === null || allowedUserIds.has(r.user_id))
       .map((r) => {
         const geometry = filterGeometryByBbox(
           JSON.parse(r.geom_json) as GeoJsonGeometry,
@@ -508,26 +544,15 @@ Deno.serve(async (req) => {
         return {
           type: "Feature",
           properties: {
-            ...(scope === "crew" && crewContext
+            user_id: r.user_id,
+            ...(scope
               ? {
-                user_id: r.user_id,
-                source_user_id: r.user_id,
-                owner_type: "crew",
-                owner_id: crewContext.id,
-                nick_name: crewContext.name,
-                color_hex: crewContext.colorHex,
+                owner_type: "user",
+                owner_id: r.user_id,
               }
-              : {
-                user_id: r.user_id,
-                ...(scope
-                  ? {
-                    owner_type: "user",
-                    owner_id: r.user_id,
-                  }
-                  : {}),
-                nick_name: r.nick_name,
-                color_hex: r.color_hex,
-              }),
+              : {}),
+            nick_name: r.nick_name,
+            color_hex: r.color_hex,
             area: r.area,
           },
           geometry,
