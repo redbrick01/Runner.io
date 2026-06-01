@@ -15,6 +15,7 @@
 | `backfill-run-embeddings/index.ts` | `POST` | 기존 러닝 데이터의 Supabase 내장 embedding 백필 |
 | `point-history/index.ts` | `GET` | 기간 조건에 맞는 포인트 변동 이력 조회 |
 | `profile-leaderboard/index.ts` | `GET` | 일/주/월/년/전체 기준 랭킹 및 내 주변 순위 조회 |
+| `social-friends/index.ts` | `GET`, `POST` | 친구 코드 조회/검색, 친구 요청/응답, 친구 목록과 친구 랭킹 조회 |
 | `user-ranking/index.ts` | `GET` | 현재 사용자 프로필, 총점, 순위 요약 조회 |
 | `update-profile/index.ts` | `POST` | 닉네임, 색상, 키, 몸무게, 비밀번호 수정 |
 | `territory-geojson/index.ts` | `GET` | 지도 bbox 기준 영토 GeoJSON 조회 |
@@ -53,6 +54,7 @@ AI 분석은 러닝 저장 중 자동으로 실행하지 않는다. 사용자가
 - 기존 러닝 embedding 백필
 - 포인트 이력 조회
 - 랭킹 집계
+- 친구 코드, 친구 요청, 친구 목록, 친구 랭킹
 - 프로필 조회와 수정
 - 지도용 영토 데이터 조회
 
@@ -73,6 +75,7 @@ supabase functions deploy run-ai-report
 supabase functions deploy backfill-run-embeddings
 supabase functions deploy point-history
 supabase functions deploy profile-leaderboard
+supabase functions deploy social-friends
 supabase functions deploy user-ranking
 supabase functions deploy update-profile
 supabase functions deploy territory-geojson
