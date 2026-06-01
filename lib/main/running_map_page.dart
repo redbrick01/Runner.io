@@ -2042,7 +2042,11 @@ class _RunningMapPageState extends State<RunningMapPage>
         return Map<String, dynamic>.from(decoded['data'] as Map);
       }
       if (decoded['run'] is Map) {
-        return Map<String, dynamic>.from(decoded['run'] as Map);
+        final runData = Map<String, dynamic>.from(decoded['run'] as Map);
+        if (decoded.containsKey('crew_contribution')) {
+          runData['crew_contribution'] = decoded['crew_contribution'];
+        }
+        return runData;
       }
       return decoded;
     }
