@@ -12,6 +12,7 @@ class RunSavePayload {
     required this.flattenedPathGeom,
     required this.splits,
     required this.routePoints,
+    this.crewContributionId,
   });
 
   final DateTime? startedAt;
@@ -26,6 +27,7 @@ class RunSavePayload {
   final String flattenedPathGeom;
   final List<Map<String, dynamic>> splits;
   final List<Map<String, dynamic>> routePoints;
+  final String? crewContributionId;
 
   Map<String, dynamic> toResultData() {
     return {
@@ -44,7 +46,7 @@ class RunSavePayload {
   }
 
   Map<String, dynamic> toCreateRunBody({required String pathGeom}) {
-    return {
+    final body = {
       'started_at': startedAt?.toUtc().toIso8601String(),
       'ended_at': endedAt.toUtc().toIso8601String(),
       'duration': durationSeconds,
@@ -55,5 +57,10 @@ class RunSavePayload {
       'path_geom': pathGeom,
       'splits': splits,
     };
+    final crewId = crewContributionId?.trim();
+    if (crewId != null && crewId.isNotEmpty) {
+      body['crew_id'] = crewId;
+    }
+    return body;
   }
 }

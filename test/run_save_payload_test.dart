@@ -34,6 +34,61 @@ void main() {
     expect(body.containsKey('total_ascent'), isFalse);
   });
 
+  test('includes selected crew contribution id when provided', () {
+    final payload = RunSavePayload(
+      startedAt: DateTime.utc(2026, 6, 1),
+      endedAt: DateTime.utc(2026, 6, 1, 0, 30),
+      durationSeconds: 1800,
+      distanceMeters: 5000,
+      point: 50,
+      avgPaceSecondsPerKm: 360,
+      calories: null,
+      totalAscentMeters: 0,
+      segmentedPathGeom: 'LINESTRING Z (127 37 10, 127.1 37.1 12)',
+      flattenedPathGeom: 'LINESTRING Z (127 37 10, 127.1 37.1 12)',
+      splits: const [],
+      routePoints: const [],
+      crewContributionId: 'crew-1',
+    );
+
+    final body = payload.toCreateRunBody(pathGeom: payload.flattenedPathGeom);
+
+    expect(body['crew_id'], 'crew-1');
+  });
+
+  test('omits crew id when contribution is disabled or empty', () {
+    final startedAt = DateTime.utc(2026, 6, 1);
+    final endedAt = DateTime.utc(2026, 6, 1, 0, 30);
+
+    RunSavePayload payloadWithCrewId(String? crewContributionId) {
+      return RunSavePayload(
+        startedAt: startedAt,
+        endedAt: endedAt,
+        durationSeconds: 1800,
+        distanceMeters: 5000,
+        point: 50,
+        avgPaceSecondsPerKm: 360,
+        calories: null,
+        totalAscentMeters: 0,
+        segmentedPathGeom: 'LINESTRING Z (127 37 10, 127.1 37.1 12)',
+        flattenedPathGeom: 'LINESTRING Z (127 37 10, 127.1 37.1 12)',
+        splits: const [],
+        routePoints: const [],
+        crewContributionId: crewContributionId,
+      );
+    }
+
+    final disabledBody = payloadWithCrewId(
+      null,
+    ).toCreateRunBody(pathGeom: 'LINESTRING Z (127 37 10, 127.1 37.1 12)');
+    final emptyBody = payloadWithCrewId(
+      '',
+    ).toCreateRunBody(pathGeom: 'LINESTRING Z (127 37 10, 127.1 37.1 12)');
+
+    expect(disabledBody.containsKey('crew_id'), isFalse);
+    expect(emptyBody.containsKey('crew_id'), isFalse);
+  });
+
   test('builds result data with client-only route metadata', () {
     final payload = RunSavePayload(
       startedAt: null,

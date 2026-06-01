@@ -29,6 +29,21 @@ type SplitInsertRow = {
   path_geom: string | null;
 };
 
+type CrewIdParseResult =
+  | { present: false }
+  | { present: true; value: string }
+  | { present: true; error: string };
+
+type CrewContributionResult =
+  | {
+    applied: true;
+    crew_id: string;
+    contribution_area_m2: number;
+    contribution_score: number;
+    warnings?: string[];
+  }
+  | { applied: false; error: string };
+
 function toFiniteNumber(value: unknown): number | null {
   if (value === null || value === undefined) return null;
   if (typeof value === "string" && value.trim() === "") return null;
@@ -75,6 +90,24 @@ function validatePathGeom(
   }
 
   return { value };
+}
+
+function parseCrewId(value: unknown): CrewIdParseResult {
+  if (value === undefined || value === null) return { present: false };
+  if (typeof value !== "string") {
+    return { present: true, error: "crew_id must be a string" };
+  }
+
+  const crewId = value.trim();
+  if (!crewId) return { present: false };
+  return { present: true, value: crewId };
+}
+
+function parseTimestampMillis(value: unknown): number | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const millis = Date.parse(String(value));
+  if (!Number.isFinite(millis)) return null;
+  return millis;
 }
 
 function json(body: unknown, init: ResponseInit = {}) {
@@ -130,6 +163,125 @@ function estimateCalories(
   const calories = met * weightKg * durationHours;
   if (!Number.isFinite(calories) || calories < 0) return null;
   return Number(calories.toFixed(1));
+}
+
+async function applyCrewContribution(
+  supabase: ReturnType<typeof createClient>,
+  params: {
+    crewId: string;
+    payload: JsonRecord;
+    run: unknown;
+    userId: string;
+  },
+): Promise<CrewContributionResult> {
+  const run = isRecord(params.run) ? params.run : {};
+  const runId = run.id;
+  if (runId === undefined || runId === null) {
+    return { applied: false, error: "Saved run id is missing" };
+  }
+
+  const runStartedAtMillis = parseTimestampMillis(
+    run.started_at ?? params.payload.started_at,
+  );
+  if (runStartedAtMillis === null) {
+    return { applied: false, error: "Saved run started_at is invalid" };
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("crew_members")
+    .select("id,joined_at")
+    .eq("crew_id", params.crewId)
+    .eq("user_id", params.userId)
+    .is("left_at", null)
+    .maybeSingle();
+
+  if (membershipError) {
+    console.error("Crew membership lookup error", membershipError);
+    return {
+      applied: false,
+      error: `Failed to verify crew membership: ${membershipError.message}`,
+    };
+  }
+  if (!membership) {
+    return { applied: false, error: "Active crew membership not found" };
+  }
+
+  const membershipRecord = isRecord(membership) ? membership : {};
+  const membershipId = membershipRecord.id;
+  if (membershipId === undefined || membershipId === null) {
+    return { applied: false, error: "Crew membership id is missing" };
+  }
+
+  const joinedAtMillis = parseTimestampMillis(membershipRecord.joined_at);
+  if (joinedAtMillis === null) {
+    return { applied: false, error: "Crew membership joined_at is invalid" };
+  }
+  if (joinedAtMillis > runStartedAtMillis) {
+    return {
+      applied: false,
+      error: "Crew membership started after run start",
+    };
+  }
+
+  const contributionArea = toFiniteNumber(run.area) ?? 0;
+  const contributionScore = toFiniteNumber(run.point) ??
+    toFiniteNumber(params.payload.point) ?? 0;
+
+  const { error: contributionError } = await supabase
+    .from("run_crew_contributions")
+    .insert([{
+      run_id: runId,
+      user_id: params.userId,
+      crew_id: params.crewId,
+      contribution_area_m2: contributionArea,
+      contribution_score: contributionScore,
+    }]);
+
+  if (contributionError) {
+    console.error("Crew contribution insert error", contributionError);
+    return {
+      applied: false,
+      error: `Failed to save crew contribution: ${contributionError.message}`,
+    };
+  }
+
+  const warnings: string[] = [];
+  const { error: updateMembershipError } = await supabase
+    .from("crew_members")
+    .update({ last_contributed_at: new Date().toISOString() })
+    .eq("id", membershipId)
+    .is("left_at", null);
+  if (updateMembershipError) {
+    console.error("Crew membership contribution timestamp error", {
+      error: updateMembershipError,
+      crew_id: params.crewId,
+      user_id: params.userId,
+    });
+    warnings.push(
+      `Failed to update last_contributed_at: ${updateMembershipError.message}`,
+    );
+  }
+
+  const { error: defaultCrewError } = await supabase.rpc("set_default_crew", {
+    p_user_id: params.userId,
+    p_crew_id: params.crewId,
+  });
+  if (defaultCrewError) {
+    console.error("Set default crew error", {
+      error: defaultCrewError,
+      crew_id: params.crewId,
+      user_id: params.userId,
+    });
+    warnings.push(`Failed to set default crew: ${defaultCrewError.message}`);
+  }
+
+  return {
+    applied: true,
+    crew_id: params.crewId,
+    contribution_area_m2: contributionArea,
+    contribution_score: contributionScore,
+    ...(warnings.length > 0 ? { warnings } : {}),
+  };
 }
 
 serve(async (req: Request) => {
@@ -321,6 +473,23 @@ serve(async (req: Request) => {
           );
         }
       }
+    }
+
+    const crewId = parseCrewId(payload.crew_id);
+    if (crewId.present) {
+      const crewContribution = "error" in crewId
+        ? { applied: false as const, error: crewId.error }
+        : await applyCrewContribution(supabase, {
+          crewId: crewId.value,
+          payload,
+          run: data,
+          userId: uid,
+        });
+
+      return json(
+        { run: data, crew_contribution: crewContribution },
+        { status: 201 },
+      );
     }
 
     //성공
