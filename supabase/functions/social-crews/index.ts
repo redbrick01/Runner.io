@@ -1,8 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.26.0";
 import {
-  aggregateCrewMetrics,
-  candidateLimitForSearch,
-  type CrewSort,
   getSeasonBounds,
   nextDateKey,
   parseAnchorDate,
@@ -12,7 +9,6 @@ import {
   parseSeasonType,
   round2,
   type SeasonType,
-  sortCrewSummaries,
   startOfDayKst,
 } from "./helpers.ts";
 
@@ -135,16 +131,6 @@ function isUniqueViolation(error: unknown): boolean {
     String(record.message ?? "").includes("crew_members_crew_id_user_id_key");
 }
 
-function latestIso(a: string | null, b: string | null): string | null {
-  if (!a) return b;
-  if (!b) return a;
-  return Date.parse(b) > Date.parse(a) ? b : a;
-}
-
-function escapeIlikePattern(value: string): string {
-  return value.replace(/[%_*,]/g, "");
-}
-
 async function requireAuthenticatedUser(req: Request) {
   const authHeader = req.headers.get("authorization") ?? "";
   const token = parseBearerToken(authHeader, SUPABASE_ANON_KEY);
@@ -234,124 +220,61 @@ async function fetchPublicCrew(
 async function fetchCrewSummaries(
   supabase: SupabaseClient,
   userId: string,
-  crews: CrewRow[],
+  crewIds: string[],
   bounds: { from: string; to: string },
 ): Promise<{ summaries: InternalCrewSummary[] } | { response: Response }> {
-  if (crews.length === 0) return { summaries: [] };
+  if (crewIds.length === 0) return { summaries: [] };
 
-  const crewIds = crews.map((crew) => crew.id);
-  const { data: memberRows, error: memberError } = await supabase
-    .from("crew_members")
-    .select(
-      "id,crew_id,user_id,joined_at,is_default_contribution,last_contributed_at,left_at",
-    )
-    .in("crew_id", crewIds)
-    .is("left_at", null);
+  const { data, error } = await supabase.rpc("social_crew_summaries_by_ids", {
+    p_user_id: userId,
+    p_crew_ids: crewIds,
+    p_season_from: startOfDayKst(bounds.from),
+    p_season_to_exclusive: startOfDayKst(nextDateKey(bounds.to)),
+  });
 
-  if (memberError) {
+  if (error) {
     return {
       response: json(
-        { error: "Failed to fetch crew members", details: memberError.message },
+        { error: "Failed to fetch crew summaries", details: error.message },
         { status: 500 },
       ),
     };
   }
 
-  const seasonFrom = startOfDayKst(bounds.from);
-  const seasonTo = startOfDayKst(nextDateKey(bounds.to));
-  const { data: seasonRows, error: seasonError } = await supabase
-    .from("run_crew_contributions")
-    .select("crew_id,contribution_score,contribution_area_m2")
-    .in("crew_id", crewIds)
-    .gte("created_at", seasonFrom)
-    .lt("created_at", seasonTo);
+  return { summaries: (data ?? []) as InternalCrewSummary[] };
+}
 
-  if (seasonError) {
+async function searchCrewSummaries(
+  supabase: SupabaseClient,
+  userId: string,
+  params: {
+    q: string;
+    region: string;
+    sort: string;
+    limit: number;
+    bounds: { from: string; to: string };
+  },
+): Promise<{ summaries: InternalCrewSummary[] } | { response: Response }> {
+  const { data, error } = await supabase.rpc("social_crew_summaries", {
+    p_user_id: userId,
+    p_q: params.q.length > 0 ? params.q : null,
+    p_region: params.region.length > 0 ? params.region : null,
+    p_sort: params.sort,
+    p_limit: params.limit,
+    p_season_from: startOfDayKst(params.bounds.from),
+    p_season_to_exclusive: startOfDayKst(nextDateKey(params.bounds.to)),
+  });
+
+  if (error) {
     return {
       response: json(
-        {
-          error: "Failed to fetch season contributions",
-          details: seasonError.message,
-        },
+        { error: "Failed to fetch crew summaries", details: error.message },
         { status: 500 },
       ),
     };
   }
 
-  const { data: allRows, error: allError } = await supabase
-    .from("run_crew_contributions")
-    .select("crew_id,contribution_score,contribution_area_m2,created_at")
-    .in("crew_id", crewIds);
-
-  if (allError) {
-    return {
-      response: json(
-        {
-          error: "Failed to fetch cumulative contributions",
-          details: allError.message,
-        },
-        { status: 500 },
-      ),
-    };
-  }
-
-  const activeMembers = (memberRows ?? []) as CrewMemberRow[];
-  const memberCounts = new Map<string, number>();
-  const userMemberships = new Map<string, CrewMemberRow>();
-  const latestActivity = new Map<string, string | null>();
-
-  for (const member of activeMembers) {
-    memberCounts.set(
-      member.crew_id,
-      (memberCounts.get(member.crew_id) ?? 0) + 1,
-    );
-    latestActivity.set(
-      member.crew_id,
-      latestIso(
-        latestActivity.get(member.crew_id) ?? null,
-        member.last_contributed_at,
-      ),
-    );
-    if (member.user_id === userId) {
-      userMemberships.set(member.crew_id, member);
-    }
-  }
-
-  const typedAllRows = (allRows ?? []) as ContributionRow[];
-  for (const row of typedAllRows) {
-    latestActivity.set(
-      row.crew_id,
-      latestIso(
-        latestActivity.get(row.crew_id) ?? null,
-        row.created_at ?? null,
-      ),
-    );
-  }
-
-  const seasonMetrics = aggregateCrewMetrics(
-    (seasonRows ?? []) as ContributionRow[],
-  );
-  const cumulativeMetrics = aggregateCrewMetrics(typedAllRows);
-
-  return {
-    summaries: crews.map((crew) => {
-      const membership = userMemberships.get(crew.id);
-      return {
-        id: crew.id,
-        name: crew.name,
-        description: crew.description,
-        region: crew.region,
-        color_hex: crew.color_hex,
-        member_count: memberCounts.get(crew.id) ?? 0,
-        season_score: seasonMetrics.get(crew.id)?.finalScore ?? 0,
-        cumulative_area_m2: cumulativeMetrics.get(crew.id)?.areaM2 ?? 0,
-        is_joined: Boolean(membership),
-        is_default_contribution: membership?.is_default_contribution ?? false,
-        created_at: crew.created_at,
-        last_contributed_at: latestActivity.get(crew.id) ?? null,
-      };
-    }),
-  };
+  return { summaries: (data ?? []) as InternalCrewSummary[] };
 }
 
 async function fetchActiveMembership(
@@ -394,7 +317,7 @@ async function fetchCrewSummaryById(
   const summariesResult = await fetchCrewSummaries(
     supabase,
     userId,
-    [crewResult.crew],
+    [crewId],
     bounds,
   );
   if ("response" in summariesResult) return summariesResult;
@@ -546,60 +469,20 @@ Deno.serve(async (req) => {
       const mode = (url.searchParams.get("mode") ?? "search").toLowerCase();
 
       if (mode === "search") {
-        const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
-        const region = (url.searchParams.get("region") ?? "").trim()
-          .toLowerCase();
+        const q = (url.searchParams.get("q") ?? "").trim();
+        const region = (url.searchParams.get("region") ?? "").trim();
         const sort = parseCrewSort(url.searchParams.get("sort"));
         const limit = parseSearchLimit(url.searchParams.get("limit"));
-        const candidateLimit = candidateLimitForSearch(sort, limit);
         const { bounds } = currentSeason();
 
-        let crewQuery = supabase
-          .from("crews")
-          .select(
-            "id,name,description,region,color_hex,is_public,created_at,deleted_at",
-          )
-          .eq("is_public", true)
-          .is("deleted_at", null);
-
-        if (q.length > 0) {
-          const pattern = escapeIlikePattern(q);
-          crewQuery = crewQuery.or(
-            `name.ilike.%${pattern}%,region.ilike.%${pattern}%`,
-          );
-        }
-        if (region.length > 0) {
-          crewQuery = crewQuery.ilike(
-            "region",
-            `%${escapeIlikePattern(region)}%`,
-          );
-        }
-        crewQuery = crewQuery
-          .order("created_at", { ascending: false })
-          .limit(candidateLimit);
-
-        const { data, error } = await crewQuery;
-
-        if (error) {
-          return json(
-            { error: "Failed to search crews", details: error.message },
-            { status: 500 },
-          );
-        }
-
-        const crews = (data ?? []) as CrewRow[];
-
-        const summariesResult = await fetchCrewSummaries(
+        const summariesResult = await searchCrewSummaries(
           supabase,
           userId,
-          crews,
-          bounds,
+          { q, region, sort, limit, bounds },
         );
         if ("response" in summariesResult) return summariesResult.response;
 
-        const sorted = sortCrewSummaries(summariesResult.summaries, sort)
-          .slice(0, limit)
-          .map(stripInternal);
+        const sorted = summariesResult.summaries.map(stripInternal);
 
         return json({ crews: sorted });
       }
@@ -631,31 +514,10 @@ Deno.serve(async (req) => {
             ),
           ),
         ];
-        const { data: crews, error: crewError } = crewIds.length > 0
-          ? await supabase
-            .from("crews")
-            .select(
-              "id,name,description,region,color_hex,is_public,created_at,deleted_at",
-            )
-            .in("id", crewIds)
-            .eq("is_public", true)
-            .is("deleted_at", null)
-          : { data: [], error: null };
-
-        if (crewError) {
-          return json(
-            {
-              error: "Failed to fetch crew details",
-              details: crewError.message,
-            },
-            { status: 500 },
-          );
-        }
-
         const summariesResult = await fetchCrewSummaries(
           supabase,
           userId,
-          (crews ?? []) as CrewRow[],
+          crewIds,
           bounds,
         );
         if ("response" in summariesResult) return summariesResult.response;
@@ -688,7 +550,7 @@ Deno.serve(async (req) => {
         const summaryResult = await fetchCrewSummaries(
           supabase,
           userId,
-          [crewResult.crew],
+          [crewId],
           season.bounds,
         );
         if ("response" in summaryResult) return summaryResult.response;
@@ -725,33 +587,21 @@ Deno.serve(async (req) => {
           return json({ error: season.error }, { status: season.status });
         }
 
-        const { data, error } = await supabase
-          .from("crews")
-          .select(
-            "id,name,description,region,color_hex,is_public,created_at,deleted_at",
-          )
-          .eq("is_public", true)
-          .is("deleted_at", null);
-
-        if (error) {
-          return json(
-            { error: "Failed to fetch crew ranking", details: error.message },
-            { status: 500 },
-          );
-        }
-
-        const summariesResult = await fetchCrewSummaries(
+        const summariesResult = await searchCrewSummaries(
           supabase,
           userId,
-          (data ?? []) as CrewRow[],
-          season.bounds,
+          {
+            q: "",
+            region: "",
+            sort: "score",
+            limit: parseSearchLimit(url.searchParams.get("limit") ?? "100"),
+            bounds: season.bounds,
+          },
         );
         if ("response" in summariesResult) return summariesResult.response;
 
-        const ranked = sortCrewSummaries(
-          summariesResult.summaries,
-          "score" satisfies CrewSort,
-        ).map((summary) => ({ ...stripInternal(summary), display_rank: 1 }));
+        const ranked = summariesResult.summaries
+          .map((summary) => ({ ...stripInternal(summary), display_rank: 1 }));
 
         for (const row of ranked) {
           row.display_rank = 1 +
@@ -923,121 +773,26 @@ Deno.serve(async (req) => {
     }
 
     if (action === "set_default") {
-      const active = await fetchActiveMembership(supabase, userId, crewId);
-      if ("response" in active) return active.response;
-      if (!active.membership) {
-        return json({ error: "Active crew membership not found" }, {
-          status: 404,
-        });
-      }
-
-      const { data: currentDefault, error: currentDefaultError } =
-        await supabase
-          .from("crew_members")
-          .select(
-            "id,crew_id,user_id,joined_at,is_default_contribution,last_contributed_at,left_at",
-          )
-          .eq("user_id", userId)
-          .eq("is_default_contribution", true)
-          .is("left_at", null)
-          .maybeSingle();
-
-      if (currentDefaultError) {
-        return json(
-          {
-            error: "Failed to fetch current default crew",
-            details: currentDefaultError.message,
-          },
-          { status: 500 },
-        );
-      }
-
-      const previousDefault = currentDefault as CrewMemberRow | null;
-      if (previousDefault?.id === active.membership.id) {
-        const summaryResult = await fetchCrewSummaryById(
-          supabase,
-          userId,
-          crewId,
-        );
-        if ("response" in summaryResult) return summaryResult.response;
-        return json({
-          status: "default_set",
-          membership: active.membership,
-          crew: summaryResult.crew,
-        });
-      }
-
-      // Edge Functions cannot make this multi-update switch atomic without an
-      // owned RPC. Keep the previous default and restore it if setting target
-      // fails after clearing other active defaults.
-      const clearOtherDefaults = () =>
-        supabase
-          .from("crew_members")
-          .update({ is_default_contribution: false })
-          .eq("user_id", userId)
-          .is("left_at", null)
-          .neq("id", active.membership!.id);
-
-      const setTargetDefault = () =>
-        supabase
-          .from("crew_members")
-          .update({ is_default_contribution: true })
-          .eq("id", active.membership!.id)
-          .is("left_at", null)
-          .select(
-            "id,crew_id,user_id,joined_at,is_default_contribution,last_contributed_at,left_at",
-          )
-          .single();
-
-      const { error: clearError } = await clearOtherDefaults();
-
-      if (clearError) {
-        return json(
-          {
-            error: "Failed to clear default crew",
-            details: clearError.message,
-          },
-          { status: 500 },
-        );
-      }
-
-      let { data: updated, error: updateError } = await setTargetDefault();
-      if (updateError && isUniqueViolation(updateError)) {
-        const { error: retryClearError } = await clearOtherDefaults();
-        if (retryClearError) {
-          return json(
-            {
-              error: "Failed to retry clearing default crew",
-              details: retryClearError.message,
-            },
-            { status: 500 },
-          );
-        }
-        const retry = await setTargetDefault();
-        updated = retry.data;
-        updateError = retry.error;
-      }
+      const { data: updated, error: updateError } = await supabase
+        .rpc("set_default_crew", {
+          p_user_id: userId,
+          p_crew_id: crewId,
+        })
+        .maybeSingle();
 
       if (updateError) {
-        let rollbackErrorMessage: string | null = null;
-        if (previousDefault) {
-          const { error: rollbackError } = await supabase
-            .from("crew_members")
-            .update({ is_default_contribution: true })
-            .eq("id", previousDefault.id)
-            .is("left_at", null);
-          rollbackErrorMessage = rollbackError?.message ?? null;
-        }
-
         return json(
           {
             error: "Failed to set default crew",
             details: updateError.message,
-            rollback_attempted: Boolean(previousDefault),
-            rollback_error: rollbackErrorMessage,
           },
           { status: 500 },
         );
+      }
+      if (!updated) {
+        return json({ error: "Active crew membership not found" }, {
+          status: 404,
+        });
       }
 
       const summaryResult = await fetchCrewSummaryById(

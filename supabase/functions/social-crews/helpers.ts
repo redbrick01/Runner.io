@@ -5,23 +5,6 @@ export type ParsedAnchorDate =
   | { ok: true; date: Date; submitted: string }
   | { ok: false };
 
-export type CrewMetric = {
-  rawScore: number;
-  maintenancePenalty: number;
-  finalScore: number;
-  areaM2: number;
-};
-
-export type SortableCrew = {
-  id: string;
-  name: string;
-  member_count: number;
-  season_score: number;
-  cumulative_area_m2: number;
-  last_contributed_at: string | null;
-  created_at: string;
-};
-
 export function parseSeasonType(value: string | null): SeasonType | "invalid" {
   if (value === null || value.trim() === "") return "week";
   const raw = value.toLowerCase();
@@ -46,11 +29,6 @@ export function parseSearchLimit(value: string | null): number {
   const parsed = Number(value ?? "");
   if (!Number.isFinite(parsed) || parsed <= 0) return 20;
   return Math.min(Math.floor(parsed), 50);
-}
-
-export function candidateLimitForSearch(sort: CrewSort, limit: number): number {
-  if (sort === "new") return limit;
-  return Math.min(Math.max(limit * 2, 50), 100);
 }
 
 export function parseBearerToken(
@@ -147,64 +125,4 @@ export function startOfDayKst(dateKey: string): string {
 
 export function round2(value: number): number {
   return Number(value.toFixed(2));
-}
-
-export function aggregateCrewMetrics(
-  rows: Array<{
-    crew_id: string;
-    contribution_score: number | null;
-    contribution_area_m2: number | null;
-  }>,
-): Map<string, CrewMetric> {
-  const totals = new Map<string, { score: number; area: number }>();
-  for (const row of rows) {
-    const score = Number(row.contribution_score ?? 0);
-    const area = Number(row.contribution_area_m2 ?? 0);
-    const current = totals.get(row.crew_id) ?? { score: 0, area: 0 };
-    totals.set(row.crew_id, {
-      score: current.score + (Number.isFinite(score) ? score : 0),
-      area: current.area + (Number.isFinite(area) ? area : 0),
-    });
-  }
-
-  const metrics = new Map<string, CrewMetric>();
-  for (const [crewId, total] of totals) {
-    const maintenancePenalty = 0;
-    metrics.set(crewId, {
-      rawScore: total.score,
-      maintenancePenalty,
-      finalScore: round2(total.score - maintenancePenalty),
-      areaM2: round2(total.area),
-    });
-  }
-  return metrics;
-}
-
-export function sortCrewSummaries<T extends SortableCrew>(
-  crews: T[],
-  sort: CrewSort,
-): T[] {
-  return [...crews].sort((a, b) => {
-    if (sort === "members" && b.member_count !== a.member_count) {
-      return b.member_count - a.member_count;
-    }
-    if (sort === "activity") {
-      const aTime = Date.parse(a.last_contributed_at ?? "");
-      const bTime = Date.parse(b.last_contributed_at ?? "");
-      const aValue = Number.isFinite(aTime) ? aTime : 0;
-      const bValue = Number.isFinite(bTime) ? bTime : 0;
-      if (bValue !== aValue) return bValue - aValue;
-    }
-    if (sort === "new") {
-      const createdDiff = Date.parse(b.created_at) - Date.parse(a.created_at);
-      if (createdDiff !== 0) return createdDiff;
-    }
-    if (b.season_score !== a.season_score) {
-      return b.season_score - a.season_score;
-    }
-    if (b.cumulative_area_m2 !== a.cumulative_area_m2) {
-      return b.cumulative_area_m2 - a.cumulative_area_m2;
-    }
-    return a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
-  });
 }
