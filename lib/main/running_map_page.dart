@@ -14,6 +14,7 @@ import '../services/run_native_adapter.dart';
 import '../services/run_service.dart';
 import '../services/run_save_payload.dart';
 import '../services/running_map_service.dart';
+import '../services/territory_service.dart';
 import 'ranking_page.dart';
 import 'point_history_page.dart';
 import 'my_page.dart';
@@ -23,6 +24,8 @@ import 'run_result_page.dart';
 import 'social_page.dart';
 import 'statistics_page.dart';
 import 'territory_detail_page.dart';
+
+enum _TerritoryLayer { personal, friends, crew }
 
 class RunningMapPage extends StatefulWidget {
   final LatLng? initialFocusTarget;
@@ -389,6 +392,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   final Set<Marker> _territoryMarkers = {};
   final Map<String, LatLngBounds> _territoryMarkerBounds = {};
   final Map<String, BitmapDescriptor> _nicknameCache = {};
+  _TerritoryLayer _territoryLayer = _TerritoryLayer.personal;
   BitmapDescriptor? _currentLocationIcon;
   final RunNativeAdapter _nativeAdapter = RunNativeAdapter();
   static const double _splitAnnouncementDistanceMeters = 500.0;
@@ -1291,6 +1295,7 @@ class _RunningMapPageState extends State<RunningMapPage>
       final data = await RunningMapService.instance.fetchTerritories(
         mapController: mapController,
         currentPosition: _currentPosition,
+        scope: _territoryScope,
       );
       if (data == null) {
         return;
@@ -1349,6 +1354,29 @@ class _RunningMapPageState extends State<RunningMapPage>
     final trimmed = nickname.trim();
     if (trimmed.length <= 8) return trimmed;
     return '${trimmed.substring(0, 7)}...';
+  }
+
+  TerritoryScope get _territoryScope {
+    switch (_territoryLayer) {
+      case _TerritoryLayer.personal:
+        return TerritoryScope.personal;
+      case _TerritoryLayer.friends:
+        return TerritoryScope.friends;
+      case _TerritoryLayer.crew:
+        return TerritoryScope.crew;
+    }
+  }
+
+  void _onTerritoryLayerChanged(_TerritoryLayer layer) {
+    if (_territoryLayer == layer) return;
+    setState(() {
+      _territoryLayer = layer;
+      _territoryPolygons.clear();
+      _territoryMarkers.clear();
+      _territoryMarkerBounds.clear();
+    });
+    _nicknameCache.clear();
+    unawaited(_fetchTerritories(force: true));
   }
 
   bool _isPointInPolygon(LatLng point, List<LatLng> polygon) {
@@ -1482,7 +1510,7 @@ class _RunningMapPageState extends State<RunningMapPage>
 
   void _collectLabelCandidate({
     required Map<String, _TerritoryLabelCandidate> candidates,
-    required String userId,
+    required String ownerId,
     required String markerIdValue,
     required String nickname,
     required Color color,
@@ -1490,9 +1518,9 @@ class _RunningMapPageState extends State<RunningMapPage>
     required LatLngBounds bounds,
     required double areaScore,
   }) {
-    final existing = candidates[userId];
+    final existing = candidates[ownerId];
     final candidate = _TerritoryLabelCandidate(
-      userId: userId,
+      ownerId: ownerId,
       markerIdValue: markerIdValue,
       nickname: nickname,
       color: color,
@@ -1502,7 +1530,7 @@ class _RunningMapPageState extends State<RunningMapPage>
     );
 
     if (existing == null || candidate.areaScore > existing.areaScore) {
-      candidates[userId] = candidate;
+      candidates[ownerId] = candidate;
     }
   }
 
@@ -1545,6 +1573,8 @@ class _RunningMapPageState extends State<RunningMapPage>
       }
       final String userId =
           properties['user_id']?.toString() ?? "unknown_$fIdx";
+      final String ownerType = properties['owner_type']?.toString() ?? 'user';
+      final String ownerId = properties['owner_id']?.toString() ?? userId;
       final String nickname = properties['nick_name']?.toString() ?? '익명';
       final String colorHex = properties['color_hex']?.toString() ?? "#448AFF";
 
@@ -1572,11 +1602,14 @@ class _RunningMapPageState extends State<RunningMapPage>
         final center = _getPolygonCenter(points);
         final bounds = _getPolygonBounds(points);
         final markerIdValue = "label_$polyId";
-        final isOwnTerritory = currentUserId != null && currentUserId == userId;
-        if (isOwnTerritory) {
+        final shouldLabel =
+            ownerType == 'crew' ||
+            _territoryLayer != _TerritoryLayer.personal ||
+            (currentUserId != null && currentUserId == userId);
+        if (shouldLabel) {
           _collectLabelCandidate(
             candidates: labelCandidates,
-            userId: userId,
+            ownerId: ownerId,
             markerIdValue: markerIdValue,
             nickname: nickname,
             color: baseColor,
@@ -1607,12 +1640,14 @@ class _RunningMapPageState extends State<RunningMapPage>
           final center = _getPolygonCenter(points);
           final bounds = _getPolygonBounds(points);
           final markerIdValue = "label_$polyId";
-          final isOwnTerritory =
-              currentUserId != null && currentUserId == userId;
-          if (isOwnTerritory) {
+          final shouldLabel =
+              ownerType == 'crew' ||
+              _territoryLayer != _TerritoryLayer.personal ||
+              (currentUserId != null && currentUserId == userId);
+          if (shouldLabel) {
             _collectLabelCandidate(
               candidates: labelCandidates,
-              userId: userId,
+              ownerId: ownerId,
               markerIdValue: markerIdValue,
               nickname: nickname,
               color: baseColor,
@@ -2689,6 +2724,25 @@ class _RunningMapPageState extends State<RunningMapPage>
     );
   }
 
+  Widget _buildTerritoryLayerSwitcher() {
+    if (_isStarted) return const SizedBox.shrink();
+
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 92,
+      left: 16,
+      right: 16,
+      child: AppSegmentedControl<_TerritoryLayer>(
+        value: _territoryLayer,
+        onChanged: _onTerritoryLayerChanged,
+        options: const [
+          AppSegmentOption(value: _TerritoryLayer.personal, label: '개인'),
+          AppSegmentOption(value: _TerritoryLayer.friends, label: '친구'),
+          AppSegmentOption(value: _TerritoryLayer.crew, label: '크루'),
+        ],
+      ),
+    );
+  }
+
   Widget _buildZoomButton(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -3175,6 +3229,7 @@ class _RunningMapPageState extends State<RunningMapPage>
                   },
                 ),
                 _buildTopBanner(),
+                _buildTerritoryLayerSwitcher(),
                 _buildBottomNavBar(),
                 _buildUnifiedControlPanel(),
                 _buildZoomControls(),
@@ -3187,7 +3242,7 @@ class _RunningMapPageState extends State<RunningMapPage>
 
 class _TerritoryLabelCandidate {
   const _TerritoryLabelCandidate({
-    required this.userId,
+    required this.ownerId,
     required this.markerIdValue,
     required this.nickname,
     required this.color,
@@ -3196,7 +3251,7 @@ class _TerritoryLabelCandidate {
     required this.areaScore,
   });
 
-  final String userId;
+  final String ownerId;
   final String markerIdValue;
   final String nickname;
   final Color color;
