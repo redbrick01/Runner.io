@@ -337,12 +337,15 @@ class _SocialPageState extends State<SocialPage> {
         limit: 50,
       );
       if (!mounted) return;
-      final selectedId = _selectedCrewId ?? _firstCrewId(myCrews, publicCrews);
+      final selectedId = _resolveSelectedCrewId(myCrews, publicCrews);
       setState(() {
         _myCrews = myCrews;
         _publicCrews = publicCrews;
         _crewRanking = ranking;
         _selectedCrewId = selectedId;
+        if (selectedId == null) {
+          _crewDetail = null;
+        }
         _crewsError = null;
         _crewsLoading = false;
       });
@@ -419,6 +422,21 @@ class _SocialPageState extends State<SocialPage> {
     if (myCrews.isNotEmpty) return myCrews.first.id;
     if (publicCrews.isNotEmpty) return publicCrews.first.id;
     return null;
+  }
+
+  String? _resolveSelectedCrewId(
+    List<CrewSummary> myCrews,
+    List<CrewSummary> publicCrews,
+  ) {
+    final selectedId = _selectedCrewId;
+    final visibleIds = {
+      ...myCrews.map((crew) => crew.id),
+      ...publicCrews.map((crew) => crew.id),
+    };
+    if (selectedId != null && visibleIds.contains(selectedId)) {
+      return selectedId;
+    }
+    return _firstCrewId(myCrews, publicCrews);
   }
 
   void _showSnack(String message) {
