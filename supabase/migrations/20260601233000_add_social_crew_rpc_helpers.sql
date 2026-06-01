@@ -316,9 +316,7 @@ SELECT ranked_members.user_id,
        ranked_members.contribution_score,
        ranked_members.contribution_area_m2,
        RANK() OVER (
-         ORDER BY
-           ranked_members.contribution_score DESC,
-           ranked_members.contribution_area_m2 DESC
+         ORDER BY ranked_members.contribution_score DESC
        )::integer AS display_rank
 FROM ranked_members
 ORDER BY
