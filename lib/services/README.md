@@ -16,6 +16,8 @@
 | `point_history_service.dart` | `point-history` 호출 |
 | `ranking_service.dart` | `profile-leaderboard` 호출, top/context 랭킹 결과 정리 |
 | `profile_service.dart` | `user-ranking`, `profile-leaderboard`, `update-profile` 호출 |
+| `social_service.dart` | `social-friends` 호출, 친구 코드/요청/목록/친구 랭킹 응답을 typed model로 변환 |
+| `crew_service.dart` | `social-crews` 호출, 크루 검색/내 크루/상세/랭킹/가입 상태 변경 응답을 typed model로 변환 |
 | `territory_service.dart` | `territory-geojson` 호출 |
 | `running_map_service.dart` | 지도 화면에서 필요한 프로필/영토 조회 조합 |
 | `user_profile_store.dart` | 프로필 snapshot 캐시와 화면 간 로컬 상태 동기화 |
@@ -41,6 +43,8 @@
 - 러닝 기록 기반 개인 분석 집계
 - 포인트 이력 조회
 - 기간별 랭킹 조회
+- 친구 코드, 친구 요청/수락, 친구 목록과 친구 랭킹 조회
+- 크루 검색, 가입/탈퇴, 기본 기여 크루 설정, 크루 상세/랭킹 조회
 - 사용자 프로필 조회/수정
 - 지도용 영토 GeoJSON 조회
 
