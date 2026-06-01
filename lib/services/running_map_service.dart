@@ -16,6 +16,8 @@ class RunningMapService {
     required GoogleMapController? mapController,
     required LatLng? currentPosition,
     int limit = 100,
+    TerritoryScope? scope,
+    String? crewId,
   }) async {
     final bbox = await _resolveBbox(
       mapController: mapController,
@@ -28,6 +30,8 @@ class RunningMapService {
     return TerritoryService.instance.fetchTerritories(
       bbox: bbox,
       limit: limit,
+      scope: scope,
+      crewId: crewId,
     );
   }
 

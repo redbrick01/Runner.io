@@ -21,6 +21,8 @@ type TerritoryRow = {
   geom_json: string;
 };
 
+type TerritoryScope = "personal" | "friends" | "crew";
+
 type Bbox = {
   minX: number;
   minY: number;
@@ -28,10 +30,32 @@ type Bbox = {
   maxY: number;
 };
 
+type CrewMemberRow = {
+  crew_id: string;
+  joined_at: string;
+  is_default_contribution: boolean;
+  last_contributed_at: string | null;
+};
+
+type CrewRow = {
+  id: string;
+  name: string;
+  color_hex: string | null;
+};
+
+type CrewContext = {
+  id: string;
+  name: string;
+  colorHex: string | null;
+  memberIds: string[];
+};
+
 type GeoJsonGeometry = {
   type: string;
   coordinates: unknown;
 };
+
+type SupabaseClient = ReturnType<typeof createClient>;
 
 function json(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
@@ -76,6 +100,24 @@ function parseBoundedInt(
   return parsed;
 }
 
+function parseScope(value: string | null): TerritoryScope | null | "invalid" {
+  if (value === null || value.trim() === "") return null;
+
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === "personal" || normalized === "friends" ||
+    normalized === "crew"
+  ) {
+    return normalized;
+  }
+  return "invalid";
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i
+    .test(value);
+}
+
 async function requireAuthenticatedUser(req: Request) {
   const authHeader = req.headers.get("authorization") ?? "";
   const token = authHeader.startsWith("Bearer ")
@@ -104,6 +146,190 @@ async function requireAuthenticatedUser(req: Request) {
   }
 
   return { userId: data.user.id };
+}
+
+async function fetchAcceptedFriendIds(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<{ userIds: string[] } | { response: Response }> {
+  const { data, error } = await supabase
+    .from("friendships")
+    .select("requester_id,addressee_id")
+    .eq("status", "accepted")
+    .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
+
+  if (error) {
+    return {
+      response: json(
+        { error: "Failed to fetch friendships", details: error.message },
+        { status: 500 },
+      ),
+    };
+  }
+
+  const userIds = ((data ?? []) as Array<{
+    requester_id: string;
+    addressee_id: string;
+  }>).map((row) =>
+    row.requester_id === userId ? row.addressee_id : row.requester_id
+  );
+
+  return { userIds: [...new Set(userIds)] };
+}
+
+async function fetchCrewById(
+  supabase: SupabaseClient,
+  crewId: string,
+): Promise<{ crew: CrewRow | null } | { response: Response }> {
+  const { data, error } = await supabase
+    .from("crews")
+    .select("id,name,color_hex")
+    .eq("id", crewId)
+    .eq("is_public", true)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (error) {
+    return {
+      response: json(
+        { error: "Failed to fetch crew", details: error.message },
+        { status: 500 },
+      ),
+    };
+  }
+
+  return { crew: data as CrewRow | null };
+}
+
+async function fetchCrewMemberIds(
+  supabase: SupabaseClient,
+  crewId: string,
+): Promise<{ userIds: string[] } | { response: Response }> {
+  const { data, error } = await supabase
+    .from("crew_members")
+    .select("user_id")
+    .eq("crew_id", crewId)
+    .is("left_at", null);
+
+  if (error) {
+    return {
+      response: json(
+        { error: "Failed to fetch crew members", details: error.message },
+        { status: 500 },
+      ),
+    };
+  }
+
+  return {
+    userIds: [
+      ...new Set(((data ?? []) as Array<{ user_id: string }>).map((
+        row,
+      ) => row.user_id)),
+    ],
+  };
+}
+
+function compareCrewMembership(a: CrewMemberRow, b: CrewMemberRow): number {
+  if (a.is_default_contribution !== b.is_default_contribution) {
+    return a.is_default_contribution ? -1 : 1;
+  }
+
+  const aTime = new Date(a.last_contributed_at ?? a.joined_at).getTime();
+  const bTime = new Date(b.last_contributed_at ?? b.joined_at).getTime();
+  return bTime - aTime;
+}
+
+async function resolveCrewContext(
+  supabase: SupabaseClient,
+  userId: string,
+  crewId: string | null,
+): Promise<{ crew: CrewContext | null } | { response: Response }> {
+  let selectedCrewId = crewId;
+
+  if (selectedCrewId) {
+    if (!isUuid(selectedCrewId)) {
+      return {
+        response: json({ error: "crew_id must be a valid UUID" }, {
+          status: 400,
+        }),
+      };
+    }
+
+    const crewResult = await fetchCrewById(supabase, selectedCrewId);
+    if ("response" in crewResult) return crewResult;
+    if (!crewResult.crew) {
+      return { response: json({ error: "Crew not found" }, { status: 404 }) };
+    }
+
+    const { data, error } = await supabase
+      .from("crew_members")
+      .select("crew_id")
+      .eq("crew_id", selectedCrewId)
+      .eq("user_id", userId)
+      .is("left_at", null)
+      .maybeSingle();
+
+    if (error) {
+      return {
+        response: json(
+          { error: "Failed to fetch crew membership", details: error.message },
+          { status: 500 },
+        ),
+      };
+    }
+    if (!data) {
+      return {
+        response: json({ error: "Active crew membership required" }, {
+          status: 403,
+        }),
+      };
+    }
+  } else {
+    const { data, error } = await supabase
+      .from("crew_members")
+      .select(
+        "crew_id,joined_at,is_default_contribution,last_contributed_at",
+      )
+      .eq("user_id", userId)
+      .is("left_at", null);
+
+    if (error) {
+      return {
+        response: json(
+          { error: "Failed to fetch crew memberships", details: error.message },
+          { status: 500 },
+        ),
+      };
+    }
+
+    const memberships = ((data ?? []) as CrewMemberRow[])
+      .sort(compareCrewMembership);
+    if (memberships.length === 0) {
+      return { crew: null };
+    }
+
+    selectedCrewId = memberships[0].crew_id;
+  }
+
+  const crewResult = await fetchCrewById(supabase, selectedCrewId);
+  if ("response" in crewResult) return crewResult;
+  if (!crewResult.crew) {
+    return crewId
+      ? { response: json({ error: "Crew not found" }, { status: 404 }) }
+      : { crew: null };
+  }
+
+  const membersResult = await fetchCrewMemberIds(supabase, selectedCrewId);
+  if ("response" in membersResult) return membersResult;
+
+  return {
+    crew: {
+      id: crewResult.crew.id,
+      name: crewResult.crew.name,
+      colorHex: crewResult.crew.color_hex,
+      memberIds: membersResult.userIds,
+    },
+  };
 }
 
 function ringBounds(ring: unknown): Bbox | null {
@@ -211,9 +437,42 @@ Deno.serve(async (req) => {
         { status: 400 },
       );
     }
+    const scope = parseScope(params.get("scope"));
+    if (scope === "invalid") {
+      return json(
+        { error: "scope must be personal, friends, or crew" },
+        { status: 400 },
+      );
+    }
+
+    const crewId = params.get("crew_id")?.trim() || null;
+    let allowedUserIds: Set<string> | null = null;
+    let crewContext: CrewContext | null = null;
+    if (scope === "personal") {
+      allowedUserIds = new Set([auth.userId]);
+    } else if (scope === "friends") {
+      const friendsResult = await fetchAcceptedFriendIds(supabase, auth.userId);
+      if ("response" in friendsResult) return friendsResult.response;
+      allowedUserIds = new Set(friendsResult.userIds);
+    } else if (scope === "crew") {
+      const crewResult = await resolveCrewContext(
+        supabase,
+        auth.userId,
+        crewId,
+      );
+      if ("response" in crewResult) return crewResult.response;
+      crewContext = crewResult.crew;
+      allowedUserIds = new Set(crewContext?.memberIds ?? []);
+    } else if (crewId) {
+      return json(
+        { error: "crew_id can only be used with scope=crew" },
+        { status: 400 },
+      );
+    }
+
     let rpcArgs: TerritoryRpcArgs = {
       in_srid: srid,
-      in_limit: limit,
+      in_limit: scope ? 1000 : limit,
       in_minx: null,
       in_miny: null,
       in_maxx: null,
@@ -238,6 +497,7 @@ Deno.serve(async (req) => {
     }
 
     const features = ((data ?? []) as TerritoryRow[])
+      .filter((r) => allowedUserIds === null || allowedUserIds.has(r.user_id))
       .map((r) => {
         const geometry = filterGeometryByBbox(
           JSON.parse(r.geom_json) as GeoJsonGeometry,
@@ -248,15 +508,33 @@ Deno.serve(async (req) => {
         return {
           type: "Feature",
           properties: {
-            user_id: r.user_id,
-            nick_name: r.nick_name,
-            color_hex: r.color_hex,
+            ...(scope === "crew" && crewContext
+              ? {
+                user_id: r.user_id,
+                source_user_id: r.user_id,
+                owner_type: "crew",
+                owner_id: crewContext.id,
+                nick_name: crewContext.name,
+                color_hex: crewContext.colorHex,
+              }
+              : {
+                user_id: r.user_id,
+                ...(scope
+                  ? {
+                    owner_type: "user",
+                    owner_id: r.user_id,
+                  }
+                  : {}),
+                nick_name: r.nick_name,
+                color_hex: r.color_hex,
+              }),
             area: r.area,
           },
           geometry,
         };
       })
-      .filter((feature) => feature !== null);
+      .filter((feature) => feature !== null)
+      .slice(0, limit);
 
     return json({
       type: "FeatureCollection",
