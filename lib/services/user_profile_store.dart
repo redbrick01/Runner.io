@@ -10,6 +10,7 @@ class UserProfileSnapshot {
     required this.nickName,
     required this.totalPoints,
     required this.colorHex,
+    required this.friendCode,
     required this.createdAt,
     required this.userId,
     required this.heightCm,
@@ -23,6 +24,7 @@ class UserProfileSnapshot {
   final String? nickName;
   final double totalPoints;
   final String? colorHex;
+  final String? friendCode;
   final DateTime? createdAt;
   final String? userId;
   final double? heightCm;
@@ -36,6 +38,7 @@ class UserProfileSnapshot {
     String? nickName,
     double? totalPoints,
     String? colorHex,
+    String? friendCode,
     DateTime? createdAt,
     String? userId,
     double? heightCm,
@@ -49,6 +52,7 @@ class UserProfileSnapshot {
       nickName: nickName ?? this.nickName,
       totalPoints: totalPoints ?? this.totalPoints,
       colorHex: colorHex ?? this.colorHex,
+      friendCode: friendCode ?? this.friendCode,
       createdAt: createdAt ?? this.createdAt,
       userId: userId ?? this.userId,
       heightCm: heightCm ?? this.heightCm,
@@ -57,34 +61,28 @@ class UserProfileSnapshot {
     );
   }
 
-  factory UserProfileSnapshot.fromResponseMap(Map<String, dynamic> responseMap) {
+  factory UserProfileSnapshot.fromResponseMap(
+    Map<String, dynamic> responseMap,
+  ) {
     final data = (responseMap['data'] as Map<String, dynamic>?) ?? responseMap;
-    final profile = (data['profile'] as Map<String, dynamic>?) ??
+    final profile =
+        (data['profile'] as Map<String, dynamic>?) ??
         (data['self'] as Map<String, dynamic>?) ??
         (data['user'] as Map<String, dynamic>?) ??
         const <String, dynamic>{};
-    final user = (data['user'] as Map<String, dynamic>?) ??
-        const <String, dynamic>{};
+    final user =
+        (data['user'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
 
     return UserProfileSnapshot(
-      rank: _asInt(
-        data['rank'] ??
-            user['rank'] ??
-            profile['rank'],
-      ),
-      area: _asDouble(
-        data['area'] ??
-            user['area'] ??
-            profile['area'],
-      ),
+      rank: _asInt(data['rank'] ?? user['rank'] ?? profile['rank']),
+      area: _asDouble(data['area'] ?? user['area'] ?? profile['area']),
       id: profile['id'] is num ? (profile['id'] as num).toInt() : null,
       nickName: (profile['nick_name'] ?? profile['nickname'])?.toString(),
       totalPoints: _asDouble(
-        profile['total_points'] ??
-            profile['points'] ??
-            user['total_points'],
+        profile['total_points'] ?? profile['points'] ?? user['total_points'],
       ),
       colorHex: profile['color_hex']?.toString(),
+      friendCode: profile['friend_code']?.toString(),
       createdAt: DateTime.tryParse(profile['created_at']?.toString() ?? ''),
       userId: (profile['user_id'] ?? user['user_id'] ?? user['id'])?.toString(),
       heightCm: _asNullableDouble(profile['height_cm']),

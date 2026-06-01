@@ -22,6 +22,7 @@ void main() {
             'nick_name': 'runner',
             'total_points': 42.5,
             'color_hex': '#0090FF',
+            'friend_code': 'AB12CD34',
             'user_id': 'user-1',
           },
         },
@@ -31,6 +32,7 @@ void main() {
       expect(snapshot.rank, 7);
       expect(snapshot.area, 1234567.0);
       expect(snapshot.totalPoints, 42.5);
+      expect(snapshot.friendCode, 'AB12CD34');
       expect(snapshot.userId, 'user-1');
     });
   });

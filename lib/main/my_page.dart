@@ -170,6 +170,7 @@ class _MyPageState extends State<MyPage> {
     final nickname = snapshot?.nickName?.trim().isNotEmpty == true
         ? snapshot!.nickName!.trim()
         : '게스트';
+    final friendCode = snapshot?.friendCode?.trim();
     final colorHex = snapshot?.colorHex;
     final avatarColor = _resolveProfileColor(colorHex);
     final points = snapshot?.totalPoints ?? 0.0;
@@ -224,15 +225,36 @@ class _MyPageState extends State<MyPage> {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: Text(
-                                nickname,
-                                style: const TextStyle(
-                                  color: AppColors.text,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      nickname,
+                                      style: const TextStyle(
+                                        color: AppColors.text,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (friendCode != null &&
+                                      friendCode.isNotEmpty) ...[
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        friendCode,
+                                        style: AppTextStyles.label.copyWith(
+                                          color: AppColors.disabledText,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                           ],

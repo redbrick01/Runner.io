@@ -62,6 +62,15 @@ Deno.serve(async (req: Request) => {
     }
 
     const row = data?.[0];
+    const { data: profileRow, error: profileError } = await adminClient
+      .from("profiles")
+      .select("friend_code")
+      .eq("user_id", user_id)
+      .maybeSingle();
+
+    if (profileError) {
+      throw profileError;
+    }
 
     const result = row
       ? {
@@ -72,6 +81,7 @@ Deno.serve(async (req: Request) => {
           nick_name: row.nick_name,
           total_points: row.total_points,
           color_hex: row.color_hex,
+          friend_code: profileRow?.friend_code ?? null,
           created_at: row.created_at,
           user_id: row.user_id,
         },
