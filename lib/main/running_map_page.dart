@@ -600,6 +600,13 @@ class _RunningMapPageState extends State<RunningMapPage>
     }
   }
 
+  void _resetCrewContributionSelectionToDefault() {
+    _hasUserSelectedCrewContribution = false;
+    _selectedCrewContributionId = defaultCrewContributionIdFor(
+      _joinedContributionCrews,
+    );
+  }
+
   String _formatSplitPaceKorean(double secondsPerKm) {
     if (!secondsPerKm.isFinite || secondsPerKm <= 0) {
       return '측정 불가';
@@ -2448,6 +2455,7 @@ class _RunningMapPageState extends State<RunningMapPage>
         _isFollowingUser = false;
         _session.reset();
         _polylines.clear();
+        _resetCrewContributionSelectionToDefault();
       });
       _lastAnnouncedSplitKm = 0;
       _lastAnnouncedSplitElapsedSeconds = 0;
