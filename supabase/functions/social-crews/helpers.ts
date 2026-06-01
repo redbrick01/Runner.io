@@ -42,6 +42,27 @@ export function parseCrewSort(value: string | null): CrewSort {
   return "score";
 }
 
+export function parseSearchLimit(value: string | null): number {
+  const parsed = Number(value ?? "");
+  if (!Number.isFinite(parsed) || parsed <= 0) return 20;
+  return Math.min(Math.floor(parsed), 50);
+}
+
+export function candidateLimitForSearch(sort: CrewSort, limit: number): number {
+  if (sort === "new") return limit;
+  return Math.min(Math.max(limit * 2, 50), 100);
+}
+
+export function parseBearerToken(
+  authHeader: string | null,
+  anonKey: string | undefined,
+): string | null {
+  const raw = authHeader ?? "";
+  const token = raw.replace(/^Bearer\s+/i, "").trim();
+  if (!token || token === raw.trim() || token === anonKey) return null;
+  return token;
+}
+
 export function parseAnchorDate(
   value: string | null,
   now: () => Date = () => new Date(),

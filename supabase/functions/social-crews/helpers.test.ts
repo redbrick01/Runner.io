@@ -1,9 +1,12 @@
 import {
   aggregateCrewMetrics,
+  candidateLimitForSearch,
   getSeasonBounds,
   nextDateKey,
   parseAnchorDate,
+  parseBearerToken,
   parseCrewSort,
+  parseSearchLimit,
   parseSeasonType,
   sortCrewSummaries,
 } from "./helpers.ts";
@@ -28,6 +31,30 @@ Deno.test("parseSeasonType defaults to week and rejects unsupported values", () 
   assertEquals(parseSeasonType(""), "week");
   assertEquals(parseSeasonType("month"), "month");
   assertEquals(parseSeasonType("year"), "invalid");
+});
+
+Deno.test("parseBearerToken accepts case-insensitive bearer scheme only", () => {
+  assertEquals(parseBearerToken("Bearer user-token", "anon-key"), "user-token");
+  assertEquals(
+    parseBearerToken("bearer   user-token", "anon-key"),
+    "user-token",
+  );
+  assertEquals(parseBearerToken("BEARER user-token", "anon-key"), "user-token");
+  assertEquals(parseBearerToken("  Bearer user-token", "anon-key"), null);
+  assertEquals(parseBearerToken("Basic user-token", "anon-key"), null);
+  assertEquals(parseBearerToken("Bearer anon-key", "anon-key"), null);
+});
+
+Deno.test("parseSearchLimit and candidateLimitForSearch bound crew search work", () => {
+  assertEquals(parseSearchLimit(null), 20);
+  assertEquals(parseSearchLimit("5"), 5);
+  assertEquals(parseSearchLimit("500"), 50);
+  assertEquals(parseSearchLimit("-1"), 20);
+
+  assertEquals(candidateLimitForSearch("new", 12), 12);
+  assertEquals(candidateLimitForSearch("score", 12), 50);
+  assertEquals(candidateLimitForSearch("members", 80), 100);
+  assertEquals(candidateLimitForSearch("activity", 50), 100);
 });
 
 Deno.test("parseAnchorDate accepts only empty or YYYY-MM-DD dates", () => {

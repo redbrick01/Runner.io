@@ -1,11 +1,14 @@
 import { createClient } from "npm:@supabase/supabase-js@2.26.0";
 import {
   aggregateCrewMetrics,
+  candidateLimitForSearch,
   type CrewSort,
   getSeasonBounds,
   nextDateKey,
   parseAnchorDate,
+  parseBearerToken,
   parseCrewSort,
+  parseSearchLimit,
   parseSeasonType,
   round2,
   type SeasonType,
@@ -109,12 +112,6 @@ function isUuid(value: string): boolean {
     .test(value);
 }
 
-function parseLimit(value: string | null): number {
-  const parsed = Number(value ?? "");
-  if (!Number.isFinite(parsed) || parsed <= 0) return 20;
-  return Math.min(Math.floor(parsed), 50);
-}
-
 function stripInternal(summary: InternalCrewSummary): CrewSummary {
   return {
     id: summary.id,
@@ -144,11 +141,13 @@ function latestIso(a: string | null, b: string | null): string | null {
   return Date.parse(b) > Date.parse(a) ? b : a;
 }
 
+function escapeIlikePattern(value: string): string {
+  return value.replace(/[%_*,]/g, "");
+}
+
 async function requireAuthenticatedUser(req: Request) {
   const authHeader = req.headers.get("authorization") ?? "";
-  const token = authHeader.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length).trim()
-    : "";
+  const token = parseBearerToken(authHeader, SUPABASE_ANON_KEY);
   if (!token || token === SUPABASE_ANON_KEY) {
     return { error: "Missing access token", status: 401 };
   }
@@ -551,16 +550,35 @@ Deno.serve(async (req) => {
         const region = (url.searchParams.get("region") ?? "").trim()
           .toLowerCase();
         const sort = parseCrewSort(url.searchParams.get("sort"));
-        const limit = parseLimit(url.searchParams.get("limit"));
+        const limit = parseSearchLimit(url.searchParams.get("limit"));
+        const candidateLimit = candidateLimitForSearch(sort, limit);
         const { bounds } = currentSeason();
 
-        const { data, error } = await supabase
+        let crewQuery = supabase
           .from("crews")
           .select(
             "id,name,description,region,color_hex,is_public,created_at,deleted_at",
           )
           .eq("is_public", true)
           .is("deleted_at", null);
+
+        if (q.length > 0) {
+          const pattern = escapeIlikePattern(q);
+          crewQuery = crewQuery.or(
+            `name.ilike.%${pattern}%,region.ilike.%${pattern}%`,
+          );
+        }
+        if (region.length > 0) {
+          crewQuery = crewQuery.ilike(
+            "region",
+            `%${escapeIlikePattern(region)}%`,
+          );
+        }
+        crewQuery = crewQuery
+          .order("created_at", { ascending: false })
+          .limit(candidateLimit);
+
+        const { data, error } = await crewQuery;
 
         if (error) {
           return json(
@@ -569,14 +587,7 @@ Deno.serve(async (req) => {
           );
         }
 
-        const crews = ((data ?? []) as CrewRow[]).filter((crew) => {
-          const matchesQ = q.length === 0 ||
-            crew.name.toLowerCase().includes(q) ||
-            (crew.region ?? "").toLowerCase().includes(q);
-          const matchesRegion = region.length === 0 ||
-            (crew.region ?? "").toLowerCase().includes(region);
-          return matchesQ && matchesRegion;
-        });
+        const crews = (data ?? []) as CrewRow[];
 
         const summariesResult = await fetchCrewSummaries(
           supabase,
@@ -682,11 +693,17 @@ Deno.serve(async (req) => {
         );
         if ("response" in summaryResult) return summaryResult.response;
 
-        const membersResult = await fetchMemberContributions(
+        const activeMembership = await fetchActiveMembership(
           supabase,
+          userId,
           crewId,
-          season.bounds,
         );
+        if ("response" in activeMembership) return activeMembership.response;
+
+        const canViewMembers = Boolean(activeMembership.membership);
+        const membersResult = canViewMembers
+          ? await fetchMemberContributions(supabase, crewId, season.bounds)
+          : { members: [] };
         if ("response" in membersResult) return membersResult.response;
 
         return json({
@@ -697,6 +714,7 @@ Deno.serve(async (req) => {
             to: season.bounds.to,
           },
           crew: stripInternal(summaryResult.summaries[0]),
+          can_view_members: canViewMembers,
           members: membersResult.members,
         });
       }
@@ -877,9 +895,7 @@ Deno.serve(async (req) => {
       const active = await fetchActiveMembership(supabase, userId, crewId);
       if ("response" in active) return active.response;
       if (!active.membership) {
-        return json({ error: "Active crew membership not found" }, {
-          status: 404,
-        });
+        return json({ status: "already_left", membership: null });
       }
 
       const { data, error } = await supabase
@@ -891,13 +907,16 @@ Deno.serve(async (req) => {
         .eq("id", active.membership.id)
         .is("left_at", null)
         .select("id,crew_id,left_at,is_default_contribution")
-        .single();
+        .maybeSingle();
 
       if (error) {
         return json(
           { error: "Failed to leave crew", details: error.message },
           { status: 500 },
         );
+      }
+      if (!data) {
+        return json({ status: "already_left", membership: null });
       }
 
       return json({ status: "left", membership: data });
@@ -912,11 +931,65 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { error: clearError } = await supabase
-        .from("crew_members")
-        .update({ is_default_contribution: false })
-        .eq("user_id", userId)
-        .is("left_at", null);
+      const { data: currentDefault, error: currentDefaultError } =
+        await supabase
+          .from("crew_members")
+          .select(
+            "id,crew_id,user_id,joined_at,is_default_contribution,last_contributed_at,left_at",
+          )
+          .eq("user_id", userId)
+          .eq("is_default_contribution", true)
+          .is("left_at", null)
+          .maybeSingle();
+
+      if (currentDefaultError) {
+        return json(
+          {
+            error: "Failed to fetch current default crew",
+            details: currentDefaultError.message,
+          },
+          { status: 500 },
+        );
+      }
+
+      const previousDefault = currentDefault as CrewMemberRow | null;
+      if (previousDefault?.id === active.membership.id) {
+        const summaryResult = await fetchCrewSummaryById(
+          supabase,
+          userId,
+          crewId,
+        );
+        if ("response" in summaryResult) return summaryResult.response;
+        return json({
+          status: "default_set",
+          membership: active.membership,
+          crew: summaryResult.crew,
+        });
+      }
+
+      // Edge Functions cannot make this multi-update switch atomic without an
+      // owned RPC. Keep the previous default and restore it if setting target
+      // fails after clearing other active defaults.
+      const clearOtherDefaults = () =>
+        supabase
+          .from("crew_members")
+          .update({ is_default_contribution: false })
+          .eq("user_id", userId)
+          .is("left_at", null)
+          .neq("id", active.membership!.id);
+
+      const setTargetDefault = () =>
+        supabase
+          .from("crew_members")
+          .update({ is_default_contribution: true })
+          .eq("id", active.membership!.id)
+          .is("left_at", null)
+          .select(
+            "id,crew_id,user_id,joined_at,is_default_contribution,last_contributed_at,left_at",
+          )
+          .single();
+
+      const { error: clearError } = await clearOtherDefaults();
 
       if (clearError) {
         return json(
@@ -928,21 +1001,40 @@ Deno.serve(async (req) => {
         );
       }
 
-      const { data: updated, error: updateError } = await supabase
-        .from("crew_members")
-        .update({ is_default_contribution: true })
-        .eq("id", active.membership.id)
-        .is("left_at", null)
-        .select(
-          "id,crew_id,user_id,joined_at,is_default_contribution,last_contributed_at,left_at",
-        )
-        .single();
+      let { data: updated, error: updateError } = await setTargetDefault();
+      if (updateError && isUniqueViolation(updateError)) {
+        const { error: retryClearError } = await clearOtherDefaults();
+        if (retryClearError) {
+          return json(
+            {
+              error: "Failed to retry clearing default crew",
+              details: retryClearError.message,
+            },
+            { status: 500 },
+          );
+        }
+        const retry = await setTargetDefault();
+        updated = retry.data;
+        updateError = retry.error;
+      }
 
       if (updateError) {
+        let rollbackErrorMessage: string | null = null;
+        if (previousDefault) {
+          const { error: rollbackError } = await supabase
+            .from("crew_members")
+            .update({ is_default_contribution: true })
+            .eq("id", previousDefault.id)
+            .is("left_at", null);
+          rollbackErrorMessage = rollbackError?.message ?? null;
+        }
+
         return json(
           {
             error: "Failed to set default crew",
             details: updateError.message,
+            rollback_attempted: Boolean(previousDefault),
+            rollback_error: rollbackErrorMessage,
           },
           { status: 500 },
         );
