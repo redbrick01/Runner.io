@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Runner Locked Pace Route"
+  xmlns="http://www.topografix.com/GPX/1/1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata>
+    <name>Locked Run Pace Route</name>
+  </metadata>
+  <wpt lat="37.566500" lon="126.978000"><name>00</name><time>2026-05-28T13:00:00Z</time></wpt>
+  <wpt lat="37.567400" lon="126.978000"><name>01</name><time>2026-05-28T13:00:10Z</time></wpt>
+  <wpt lat="37.568300" lon="126.978000"><name>02</name><time>2026-05-28T13:00:20Z</time></wpt>
+  <wpt lat="37.569200" lon="126.978000"><name>03</name><time>2026-05-28T13:00:30Z</time></wpt>
+  <wpt lat="37.570100" lon="126.978000"><name>04</name><time>2026-05-28T13:00:40Z</time></wpt>
+  <wpt lat="37.571000" lon="126.978000"><name>05</name><time>2026-05-28T13:00:50Z</time></wpt>
+  <wpt lat="37.571900" lon="126.978000"><name>06</name><time>2026-05-28T13:01:00Z</time></wpt>
+  <wpt lat="37.572800" lon="126.978000"><name>07</name><time>2026-05-28T13:01:10Z</time></wpt>
+  <wpt lat="37.573700" lon="126.978000"><name>08</name><time>2026-05-28T13:01:20Z</time></wpt>
+  <wpt lat="37.574600" lon="126.978000"><name>09</name><time>2026-05-28T13:01:30Z</time></wpt>
+  <wpt lat="37.575500" lon="126.978000"><name>10</name><time>2026-05-28T13:01:40Z</time></wpt>
+  <wpt lat="37.576400" lon="126.978000"><name>11</name><time>2026-05-28T13:01:50Z</time></wpt>
+  <wpt lat="37.577300" lon="126.978000"><name>12</name><time>2026-05-28T13:02:00Z</time></wpt>
+  <wpt lat="37.578200" lon="126.978000"><name>13</name><time>2026-05-28T13:02:10Z</time></wpt>
+  <wpt lat="37.579100" lon="126.978000"><name>14</name><time>2026-05-28T13:02:20Z</time></wpt>
+  <wpt lat="37.580000" lon="126.978000"><name>15</name><time>2026-05-28T13:02:30Z</time></wpt>
+</gpx>

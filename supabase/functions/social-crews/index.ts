@@ -143,6 +143,36 @@ function normalizeColorHex(value: unknown): string | null {
   return trimmed.toUpperCase();
 }
 
+async function rollbackCreatedCrew(
+  supabase: SupabaseClient,
+  crewId: string,
+  membershipId?: string,
+) {
+  const now = new Date().toISOString();
+  if (membershipId) {
+    const { error } = await supabase
+      .from("crew_members")
+      .update({
+        left_at: now,
+        is_default_contribution: false,
+      })
+      .eq("id", membershipId)
+      .is("left_at", null);
+    if (error) {
+      console.error("Failed to roll back creator membership", error);
+    }
+  }
+
+  const { error } = await supabase
+    .from("crews")
+    .update({ deleted_at: now })
+    .eq("id", crewId)
+    .is("deleted_at", null);
+  if (error) {
+    console.error("Failed to roll back created crew", error);
+  }
+}
+
 async function requireAuthenticatedUser(req: Request) {
   const authHeader = req.headers.get("authorization") ?? "";
   const token = parseBearerToken(authHeader, SUPABASE_ANON_KEY);
@@ -628,6 +658,7 @@ Deno.serve(async (req) => {
         .single();
 
       if (membership.error) {
+        await rollbackCreatedCrew(supabase, created.data.id);
         return json(
           {
             error: "Crew created but failed to join creator",
@@ -643,6 +674,11 @@ Deno.serve(async (req) => {
       });
 
       if (defaultError) {
+        await rollbackCreatedCrew(
+          supabase,
+          created.data.id,
+          membership.data.id,
+        );
         return json(
           {
             error: "Crew created but failed to set default",

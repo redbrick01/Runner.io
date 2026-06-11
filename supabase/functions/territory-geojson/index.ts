@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.26.0";
+import { buildFriendScopeUserIds } from "./helpers.ts";
 console.info("territory-geojson starting");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_ANON = Deno.env.get("SUPABASE_ANON_KEY");
@@ -436,7 +437,10 @@ Deno.serve(async (req) => {
     } else if (scope === "friends") {
       const friendsResult = await fetchAcceptedFriendIds(supabase, auth.userId);
       if ("response" in friendsResult) return friendsResult.response;
-      scopedUserIds = friendsResult.userIds;
+      scopedUserIds = buildFriendScopeUserIds(
+        auth.userId,
+        friendsResult.userIds,
+      );
     } else if (scope === "crew") {
       const crewResult = await resolveCrewContext(
         supabase,

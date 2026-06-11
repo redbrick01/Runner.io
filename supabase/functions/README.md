@@ -11,8 +11,9 @@
 | `create-run/index.ts` | `POST` | 완료된 러닝 기록과 split을 저장하고 DB trigger를 통해 포인트/영토 처리를 유도 |
 | `run-history/index.ts` | `GET` | 현재 로그인 사용자의 러닝 기록과 split 목록 조회 |
 | `generate-run-ai-report/index.ts` | `POST` | 특정 러닝의 embedding 생성, 유사 러닝 검색, 서버 LLM 기반 AI 리포트 저장 |
+| `generate-live-run-coaching/index.ts` | `POST` | 러닝 중 1km 구간 snapshot을 과거 유사 split과 비교해 짧은 AI 음성 코칭 문구 생성 |
 | `run-ai-report/index.ts` | `GET` | 특정 러닝 또는 최신 AI 러닝 분석 리포트 조회 |
-| `backfill-run-embeddings/index.ts` | `POST` | 기존 러닝 데이터의 Supabase 내장 embedding 백필 |
+| `backfill-run-embeddings/index.ts` | `POST` | 기존 러닝/구간 데이터의 Supabase 내장 embedding 백필 |
 | `point-history/index.ts` | `GET` | 기간 조건에 맞는 포인트 변동 이력 조회 |
 | `profile-leaderboard/index.ts` | `GET` | 일/주/월/년/전체 기준 랭킹 및 내 주변 순위 조회 |
 | `social-friends/index.ts` | `GET`, `POST` | 친구 코드 조회/검색, 친구 요청/응답, 친구 목록과 친구 랭킹 조회 |
@@ -46,13 +47,14 @@ create-run
 -> DB trigger/RPC에서 포인트와 영토 갱신
 ```
 
-AI 분석은 러닝 저장 중 자동으로 실행하지 않는다. 사용자가 러닝 리포트 화면에서 AI 분석 버튼을 누르면 `generate-run-ai-report`가 호출되고, Supabase 내장 `gte-small` embedding 생성, `match_similar_runs` RPC 유사 러닝 검색, 서버 LLM(`gpt-5.4-mini` 기본값) 리포트 저장이 진행된다.
+AI 분석은 러닝 저장 중 자동으로 실행하지 않는다. 사용자가 러닝 리포트 화면에서 AI 분석 버튼을 누르면 `generate-run-ai-report`가 호출되고, Supabase 내장 `gte-small` embedding 생성, `match_similar_runs` RPC 유사 러닝 검색, 서버 LLM(`gpt-5.4-mini` 기본값) 리포트 저장이 진행된다. 러닝 중 1km 페이스 알림에서는 `generate-live-run-coaching`이 현재 split snapshot과 `match_similar_run_segments` 결과를 이용해 짧은 후속 음성 코칭 문구를 반환한다.
 
 ## 관련 기능
 
 - 러닝 기록 저장과 조회
 - 러닝 저장 후 AI 비교 분석 리포트 생성/조회
-- 기존 러닝 embedding 백필
+- 러닝 중 AI 페이스 코칭 문구 생성
+- 기존 러닝 및 split embedding 백필
 - 포인트 이력 조회
 - 랭킹 집계
 - 친구 코드, 친구 요청, 친구 목록, 친구 랭킹
@@ -72,6 +74,7 @@ AI 분석은 러닝 저장 중 자동으로 실행하지 않는다. 사용자가
 supabase functions deploy create-run
 supabase functions deploy run-history
 supabase functions deploy generate-run-ai-report
+supabase functions deploy generate-live-run-coaching
 supabase functions deploy run-ai-report
 supabase functions deploy backfill-run-embeddings
 supabase functions deploy point-history

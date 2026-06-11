@@ -9,6 +9,7 @@ import '../design/app_design.dart';
 import '../login/login_page.dart';
 import '../services/achievement_service.dart';
 import '../services/auth_service.dart';
+import '../services/live_run_coaching_settings.dart';
 import '../services/run_history_service.dart';
 import '../services/user_profile_store.dart';
 import 'achievement_page.dart';
@@ -32,6 +33,7 @@ class _MyPageState extends State<MyPage> {
   bool _isLoading = true;
   bool _isLoggingOut = false;
   bool _isTestingTts = false;
+  bool _isAiPaceCoachEnabled = true;
   List<Achievement> _representativeBadges = const [];
   final FlutterTts _testTts = FlutterTts();
 
@@ -39,6 +41,21 @@ class _MyPageState extends State<MyPage> {
   void initState() {
     super.initState();
     _loadProfile();
+    _loadAiCoachSetting();
+  }
+
+  Future<void> _loadAiCoachSetting() async {
+    try {
+      final enabled = await LiveRunCoachingSettings.instance.isEnabled();
+      if (mounted) {
+        setState(() => _isAiPaceCoachEnabled = enabled);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _setAiCoachEnabled(bool value) async {
+    setState(() => _isAiPaceCoachEnabled = value);
+    await LiveRunCoachingSettings.instance.setEnabled(value);
   }
 
   Future<void> _loadProfile() async {
@@ -369,6 +386,27 @@ class _MyPageState extends State<MyPage> {
                     title: _isTestingTts ? 'TTS 테스트 재생 중...' : 'TTS 테스트 (임시)',
                     subtitle: '띵 효과음 후 음성 안내를 테스트합니다',
                     onTap: _isTestingTts ? () {} : _testSplitTts,
+                  ),
+                  AppSurface(
+                    padding: EdgeInsets.zero,
+                    radius: 16,
+                    child: SwitchListTile.adaptive(
+                      secondary: const Icon(
+                        Icons.psychology_alt_rounded,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text(
+                        'AI 페이스 코치',
+                        style: TextStyle(
+                          color: AppColors.text,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      subtitle: const Text('1km 페이스 알림 뒤에 짧은 코칭을 들려줍니다'),
+                      value: _isAiPaceCoachEnabled,
+                      onChanged: _setAiCoachEnabled,
+                      activeThumbColor: AppColors.primary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   AppSurface(

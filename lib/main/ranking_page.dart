@@ -1,13 +1,44 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../design/app_design.dart';
+import '../services/crew_service.dart';
 import '../services/ranking_service.dart';
+import '../services/social_service.dart';
 import 'point_history_page.dart';
+
+enum RankingScope { personal, friends, crew }
 
 enum _RankingRangeType { day, week, month, year, all }
 
+typedef PersonalRankingLoader =
+    Future<List<dynamic>> Function({String? rangeType, DateTime? anchorDate});
+typedef FriendRankingLoader =
+    Future<FriendRanking> Function({
+      required String rangeType,
+      DateTime? anchorDate,
+    });
+typedef CrewRankingLoader =
+    Future<CrewRanking> Function({
+      required String seasonType,
+      DateTime? anchorDate,
+      int limit,
+    });
+
 class RankingPage extends StatefulWidget {
-  const RankingPage({super.key});
+  const RankingPage({
+    super.key,
+    this.scope = RankingScope.personal,
+    this.currentCrewId,
+    this.loadPersonalRanking,
+    this.loadFriendRanking,
+    this.loadCrewRanking,
+  });
+
+  final RankingScope scope;
+  final String? currentCrewId;
+  final PersonalRankingLoader? loadPersonalRanking;
+  final FriendRankingLoader? loadFriendRanking;
+  final CrewRankingLoader? loadCrewRanking;
 
   @override
   State<RankingPage> createState() => _RankingPageState();
@@ -16,7 +47,7 @@ class RankingPage extends StatefulWidget {
 class _RankingPageState extends State<RankingPage> {
   List<dynamic> _rankingList = [];
   bool _isLoading = true;
-  _RankingRangeType _rangeType = _RankingRangeType.day;
+  late _RankingRangeType _rangeType;
   DateTime _anchorDate = DateTime.now();
 
   dynamic get _selfItem {
@@ -29,15 +60,15 @@ class _RankingPageState extends State<RankingPage> {
   @override
   void initState() {
     super.initState();
+    _rangeType = widget.scope == RankingScope.personal
+        ? _RankingRangeType.day
+        : _RankingRangeType.week;
     _fetchRankings();
   }
 
   Future<void> _fetchRankings() async {
     try {
-      final rankings = await RankingService.instance.fetchRankings(
-        rangeType: _rangeType.name,
-        anchorDate: _rangeType == _RankingRangeType.all ? null : _anchorDate,
-      );
+      final rankings = await _loadRankings();
       setState(() {
         _rankingList = rankings;
         _isLoading = false;
@@ -46,6 +77,67 @@ class _RankingPageState extends State<RankingPage> {
       debugPrint("랭킹 리스트 로드 실패 에러: $e");
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<List<dynamic>> _loadRankings() {
+    final anchorDate = _rangeType == _RankingRangeType.all ? null : _anchorDate;
+    switch (widget.scope) {
+      case RankingScope.personal:
+        final loader =
+            widget.loadPersonalRanking ?? RankingService.instance.fetchRankings;
+        return loader(rangeType: _rangeType.name, anchorDate: anchorDate);
+      case RankingScope.friends:
+        final loader =
+            widget.loadFriendRanking ??
+            SocialService.instance.fetchFriendRanking;
+        return loader(
+          rangeType: _socialRangeType,
+          anchorDate: anchorDate,
+        ).then(_friendRankingItems);
+      case RankingScope.crew:
+        final loader =
+            widget.loadCrewRanking ?? CrewService.instance.fetchCrewRanking;
+        return loader(
+          seasonType: _socialRangeType,
+          anchorDate: anchorDate,
+          limit: 100,
+        ).then(_crewRankingItems);
+    }
+  }
+
+  String get _socialRangeType {
+    return switch (_rangeType) {
+      _RankingRangeType.month => 'month',
+      _RankingRangeType.all => 'all',
+      _ => 'week',
+    };
+  }
+
+  List<dynamic> _friendRankingItems(FriendRanking ranking) {
+    return ranking.results
+        .map(
+          (item) => {
+            'display_rank': item.displayRank,
+            'nick_name': item.nickName ?? '익명',
+            'total_points': item.totalPoints,
+            'is_self': item.isSelf,
+          },
+        )
+        .toList(growable: false);
+  }
+
+  List<dynamic> _crewRankingItems(CrewRanking ranking) {
+    final currentCrewId = widget.currentCrewId;
+    return ranking.crews
+        .map(
+          (crew) => {
+            'display_rank': crew.displayRank ?? 0,
+            'nick_name': crew.name,
+            'total_points': crew.seasonScore,
+            'is_self': currentCrewId != null && crew.id == currentCrewId,
+          },
+        )
+        .toList(growable: false);
   }
 
   String _formatPoint(dynamic point) {
@@ -109,17 +201,32 @@ class _RankingPageState extends State<RankingPage> {
   }
 
   Widget _buildRangeToggleBar() {
+    final options = widget.scope == RankingScope.personal
+        ? const [
+            AppSegmentOption(value: _RankingRangeType.day, label: '일'),
+            AppSegmentOption(value: _RankingRangeType.week, label: '주'),
+            AppSegmentOption(value: _RankingRangeType.month, label: '월'),
+            AppSegmentOption(value: _RankingRangeType.year, label: '년'),
+            AppSegmentOption(value: _RankingRangeType.all, label: '전체'),
+          ]
+        : const [
+            AppSegmentOption(value: _RankingRangeType.week, label: '주'),
+            AppSegmentOption(value: _RankingRangeType.month, label: '월'),
+            AppSegmentOption(value: _RankingRangeType.all, label: '전체'),
+          ];
     return AppSegmentedControl<_RankingRangeType>(
       value: _rangeType,
       onChanged: _onRangeTypeChanged,
-      options: const [
-        AppSegmentOption(value: _RankingRangeType.day, label: '일'),
-        AppSegmentOption(value: _RankingRangeType.week, label: '주'),
-        AppSegmentOption(value: _RankingRangeType.month, label: '월'),
-        AppSegmentOption(value: _RankingRangeType.year, label: '년'),
-        AppSegmentOption(value: _RankingRangeType.all, label: '전체'),
-      ],
+      options: options,
     );
+  }
+
+  String get _rankingTitle {
+    return switch (widget.scope) {
+      RankingScope.personal => '랭킹 리스트',
+      RankingScope.friends => '친구 랭킹',
+      RankingScope.crew => '크루 랭킹',
+    };
   }
 
   Widget _buildRangeNavigator() {
@@ -162,11 +269,11 @@ class _RankingPageState extends State<RankingPage> {
                   const SizedBox(height: 12),
                   _buildSummaryCard(),
                   const SizedBox(height: 20),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: Text(
-                      "랭킹 리스트",
-                      style: TextStyle(
+                      _rankingTitle,
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: AppColors.text,

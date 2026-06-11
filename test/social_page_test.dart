@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:runner_flutter/main/social_page.dart';
 import 'package:runner_flutter/services/crew_service.dart';
 import 'package:runner_flutter/services/social_service.dart';
+import 'package:runner_flutter/services/supabase_api.dart';
 
 void main() {
   const friend = FriendProfile(
@@ -34,6 +35,13 @@ void main() {
   );
 
   Widget buildSubject({
+    Future<String> Function()? loadFriendCode,
+    Future<FriendRequestResult> Function(String code)? sendFriendRequest,
+    Future<FriendResponseResult> Function(
+      String friendshipId,
+      FriendResponse response,
+    )?
+    respondToFriendRequest,
     Future<List<CrewSummary>> Function()? loadMyCrews,
     Future<List<CrewSummary>> Function({
       String? query,
@@ -60,13 +68,15 @@ void main() {
   }) {
     return MaterialApp(
       home: SocialPage(
-        loadFriendCode: () async => 'AB12CD34',
+        loadFriendCode: loadFriendCode ?? () async => 'AB12CD34',
         lookupFriendCode: (_) async => friend,
-        sendFriendRequest: (_) async => FriendRequestResult(
-          friendshipId: 'friendship-1',
-          status: 'pending',
-          addressee: friend,
-        ),
+        sendFriendRequest:
+            sendFriendRequest ??
+            (_) async => FriendRequestResult(
+              friendshipId: 'friendship-1',
+              status: 'pending',
+              addressee: friend,
+            ),
         loadIncomingRequests: () async => [
           IncomingFriendRequest(
             friendshipId: 'request-1',
@@ -74,10 +84,12 @@ void main() {
             requester: friend,
           ),
         ],
-        respondToFriendRequest: (_, _) async => const FriendResponseResult(
-          friendshipId: 'request-1',
-          status: 'accepted',
-        ),
+        respondToFriendRequest:
+            respondToFriendRequest ??
+            (_, _) async => const FriendResponseResult(
+              friendshipId: 'request-1',
+              status: 'accepted',
+            ),
         loadFriends: () async => [friend],
         loadFriendRanking: ({required rangeType, anchorDate}) async =>
             FriendRanking(
@@ -172,26 +184,61 @@ void main() {
       expect(find.text('소셜'), findsOneWidget);
       expect(find.text('친구'), findsOneWidget);
       expect(find.text('크루'), findsOneWidget);
-      expect(find.text('내 친구 코드'), findsOneWidget);
-      expect(find.text('AB12CD34'), findsOneWidget);
-      expect(find.text('받은 친구 요청'), findsOneWidget);
+      expect(find.text('관계와 영토 경쟁'), findsNothing);
+      expect(find.text('친구 1명'), findsNothing);
+      expect(find.text('참여 크루 1개'), findsNothing);
+      expect(find.byTooltip('친구 관리'), findsOneWidget);
+      expect(find.byTooltip('내 친구 코드'), findsNothing);
+      expect(find.byTooltip('친구 검색'), findsNothing);
+      expect(find.byTooltip('친구 요청'), findsNothing);
+      expect(find.text('내 친구 코드'), findsNothing);
+      expect(find.text('AB12CD34'), findsNothing);
+      expect(find.text('받은 친구 요청'), findsNothing);
       expect(find.text('친구 목록'), findsOneWidget);
       expect(find.text('친구 랭킹'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('친구 관리'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(AppBar, '친구 관리'), findsOneWidget);
+      expect(find.text('내 친구 코드'), findsWidgets);
+      expect(find.text('AB12CD34'), findsOneWidget);
+      expect(find.text('받은 친구 요청'), findsOneWidget);
+      expect(find.text('친구러너'), findsWidgets);
+      await tester.tap(find.byTooltip('닫기'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('크루'));
       await tester.pumpAndSettle();
 
-      expect(find.text('내 크루'), findsOneWidget);
-      expect(find.text('크루 만들기'), findsOneWidget);
-      expect(find.text('공개 크루 찾기'), findsOneWidget);
+      expect(find.text('크루 영토 경쟁'), findsNothing);
+      expect(find.byTooltip('크루 관리'), findsOneWidget);
+      expect(find.byTooltip('내 크루'), findsNothing);
+      expect(find.byTooltip('크루 만들기'), findsNothing);
+      expect(find.byTooltip('공개 크루 찾기'), findsNothing);
+      expect(find.text('내 크루'), findsNothing);
+      expect(find.text('크루 만들기'), findsNothing);
+      expect(find.text('공개 크루 찾기'), findsNothing);
       expect(find.text('크루 랭킹'), findsOneWidget);
       expect(find.text('강남 러너스'), findsWidgets);
       expect(find.text('기본'), findsWidgets);
+
+      await tester.tap(find.byTooltip('크루 관리'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(AppBar, '크루 관리'), findsOneWidget);
+      expect(find.text('내 크루'), findsWidgets);
+      expect(find.text('크루 만들기'), findsWidgets);
+      expect(find.text('공개 크루 찾기'), findsWidgets);
+      await tester.tap(find.byTooltip('닫기'));
+      await tester.pumpAndSettle();
     });
 
     testWidgets('can lookup friend and send request', (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('친구 관리'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(AppBar, '친구 관리'), findsOneWidget);
 
       await tester.enterText(find.byType(TextField).first, 'friend01');
       await tester.tap(find.text('조회'));
@@ -250,7 +297,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(loadedDetails.last, crew.id);
 
+      await tester.tap(find.byTooltip('크루 관리'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(AppBar, '크루 관리'), findsOneWidget);
       await tester.tap(find.text('나가기'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('닫기'));
       await tester.pumpAndSettle();
 
       expect(loadedDetails.last, nextCrew.id);
@@ -275,6 +327,10 @@ void main() {
       await tester.tap(find.text('크루'));
       await tester.pumpAndSettle();
 
+      await tester.tap(find.byTooltip('크루 관리'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(AppBar, '크루 관리'), findsOneWidget);
+
       await tester.enterText(find.widgetWithText(TextField, '크루명'), '한강 러너스');
       await tester.enterText(find.widgetWithText(TextField, '지역'), '한강');
       await tester.tap(find.text('생성'));
@@ -283,6 +339,100 @@ void main() {
       expect(createdName, '한강 러너스');
       expect(createdRegion, '한강');
       expect(find.text('크루를 만들었습니다.'), findsOneWidget);
+    });
+
+    testWidgets('explains missing friend code before copy is available', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildSubject(loadFriendCode: () async => ''));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('친구 관리'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('발급 전'), findsOneWidget);
+      expect(find.text('친구 코드를 불러오면 복사할 수 있어요.'), findsOneWidget);
+      final copyButton = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.copy_rounded),
+      );
+      expect(copyButton.onPressed, isNull);
+    });
+
+    testWidgets('shows actionable social load errors', (tester) async {
+      await tester.pumpWidget(
+        buildSubject(
+          loadFriendCode: () async =>
+              throw Exception('Supabase configuration is missing'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('소셜 서버 설정이 없어 정보를 불러올 수 없습니다.'), findsOneWidget);
+    });
+
+    testWidgets('shows actionable friend request errors', (tester) async {
+      await tester.pumpWidget(
+        buildSubject(
+          sendFriendRequest: (_) async =>
+              throw Exception('SocketException: connection failed'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('친구 관리'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'friend01');
+      await tester.tap(find.text('요청'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('네트워크 연결을 확인해 주세요.'), findsOneWidget);
+    });
+
+    testWidgets('shows actionable friend response errors', (tester) async {
+      await tester.pumpWidget(
+        buildSubject(
+          respondToFriendRequest: (_, _) async =>
+              throw const ApiException('Missing access token', statusCode: 401),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('친구 관리'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('수락'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('로그인이 필요합니다. 다시 로그인해 주세요.'), findsOneWidget);
+    });
+
+    testWidgets('keeps crew form values and shows duplicate name errors', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildSubject(
+          createCrew: ({required name, description, region, colorHex}) async {
+            throw const ApiException(
+              '이미 사용 중인 크루명입니다.',
+              statusCode: 409,
+            );
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('크루'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('크루 관리'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, '크루명'), '한강 러너스');
+      await tester.enterText(find.widgetWithText(TextField, '지역'), '한강');
+      await tester.tap(find.text('생성'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('이미 사용 중인 크루명입니다.'), findsOneWidget);
+      expect(find.text('한강 러너스'), findsOneWidget);
+      expect(find.text('한강'), findsOneWidget);
     });
   });
 }

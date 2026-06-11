@@ -5,6 +5,7 @@ import '../app_colors.dart';
 import '../design/app_design.dart';
 import '../services/crew_service.dart';
 import '../services/social_service.dart';
+import '../services/supabase_api.dart';
 
 typedef LoadFriendCode = Future<String> Function();
 typedef LookupFriendCode = Future<FriendProfile> Function(String code);
@@ -101,6 +102,7 @@ class _SocialPageState extends State<SocialPage> {
   final _newCrewNameController = TextEditingController();
   final _newCrewRegionController = TextEditingController();
   final _newCrewDescriptionController = TextEditingController();
+  StateSetter? _activeSocialPageSetState;
 
   _SocialTab _tab = _SocialTab.friends;
   _SocialRange _friendRange = _SocialRange.week;
@@ -138,6 +140,7 @@ class _SocialPageState extends State<SocialPage> {
 
   @override
   void dispose() {
+    _activeSocialPageSetState = null;
     _friendCodeController.dispose();
     _crewSearchController.dispose();
     _newCrewNameController.dispose();
@@ -180,6 +183,41 @@ class _SocialPageState extends State<SocialPage> {
 
   String get _friendRangeType => _rangeApiValue(_friendRange);
   String get _crewSeasonType => _rangeApiValue(_crewRange);
+
+  String _friendlySocialError(Object error, String fallback) {
+    if (error is ApiException) {
+      final statusCode = error.statusCode;
+      if (statusCode == 401 || statusCode == 403) {
+        return '로그인이 필요합니다. 다시 로그인해 주세요.';
+      }
+      if (statusCode == 409) {
+        return error.message;
+      }
+      if (statusCode != null && statusCode >= 500) {
+        return '서버 응답이 불안정합니다. 잠시 후 다시 시도해 주세요.';
+      }
+    }
+
+    final message = error.toString();
+    if (message.contains('Supabase configuration is missing')) {
+      return '소셜 서버 설정이 없어 정보를 불러올 수 없습니다.';
+    }
+    if (message.contains('Supabase.instance') ||
+        message.contains('Missing access token') ||
+        message.contains('Invalid access token')) {
+      return '로그인이 필요합니다. 다시 로그인해 주세요.';
+    }
+    if (message.contains('SocketException') ||
+        message.contains('ClientException') ||
+        message.contains('XMLHttpRequest') ||
+        message.contains('Network')) {
+      return '네트워크 연결을 확인해 주세요.';
+    }
+    if (message.contains('Crew name already exists')) {
+      return '이미 사용 중인 크루명입니다.';
+    }
+    return fallback;
+  }
 
   DateTime? _anchorDateFor(_SocialRange range) {
     if (range == _SocialRange.all) return null;
@@ -230,7 +268,7 @@ class _SocialPageState extends State<SocialPage> {
       debugPrint('소셜 친구 정보 로드 실패: $e');
       if (!mounted) return;
       setState(() {
-        _friendsError = '친구 정보를 불러오지 못했습니다.';
+        _friendsError = _friendlySocialError(e, '친구 정보를 불러오지 못했습니다.');
         _friendsLoading = false;
       });
     }
@@ -253,7 +291,7 @@ class _SocialPageState extends State<SocialPage> {
       debugPrint('친구 랭킹 로드 실패: $e');
       if (!mounted) return;
       setState(() {
-        _friendsError = '친구 랭킹을 불러오지 못했습니다.';
+        _friendsError = _friendlySocialError(e, '친구 랭킹을 불러오지 못했습니다.');
         _friendsLoading = false;
       });
     }
@@ -277,12 +315,22 @@ class _SocialPageState extends State<SocialPage> {
         _friendLookup = profile;
         _friendSearchMessage = '${_profileName(profile)}님을 찾았습니다.';
       });
+      _refreshSocialActionPage();
     } catch (e) {
       debugPrint('친구 코드 조회 실패: $e');
       if (!mounted) return;
-      setState(() => _friendSearchMessage = '해당 코드를 찾지 못했습니다.');
+      setState(
+        () => _friendSearchMessage = _friendlySocialError(
+          e,
+          '해당 코드를 찾지 못했습니다.',
+        ),
+      );
+      _refreshSocialActionPage();
     } finally {
-      if (mounted) setState(() => _friendActionLoading = false);
+      if (mounted) {
+        setState(() => _friendActionLoading = false);
+        _refreshSocialActionPage();
+      }
     }
   }
 
@@ -301,14 +349,24 @@ class _SocialPageState extends State<SocialPage> {
         _friendLookup = null;
         _friendSearchMessage = '친구 요청을 보냈습니다.';
       });
+      _refreshSocialActionPage();
       _showSnack('친구 요청을 보냈습니다.');
       await _loadFriends(showLoading: false);
     } catch (e) {
       debugPrint('친구 요청 실패: $e');
       if (!mounted) return;
-      setState(() => _friendSearchMessage = '친구 요청을 보내지 못했습니다.');
+      setState(
+        () => _friendSearchMessage = _friendlySocialError(
+          e,
+          '친구 요청을 보내지 못했습니다.',
+        ),
+      );
+      _refreshSocialActionPage();
     } finally {
-      if (mounted) setState(() => _friendActionLoading = false);
+      if (mounted) {
+        setState(() => _friendActionLoading = false);
+        _refreshSocialActionPage();
+      }
     }
   }
 
@@ -325,11 +383,12 @@ class _SocialPageState extends State<SocialPage> {
             ? '친구 요청을 수락했습니다.'
             : '친구 요청을 거절했습니다.',
       );
+      _refreshSocialActionPage();
       await _loadFriends(showLoading: false);
     } catch (e) {
       debugPrint('친구 요청 응답 실패: $e');
       if (!mounted) return;
-      _showSnack('요청을 처리하지 못했습니다.');
+      _showSnack(_friendlySocialError(e, '요청을 처리하지 못했습니다.'));
     } finally {
       if (mounted) setState(() => _friendActionLoading = false);
     }
@@ -374,7 +433,7 @@ class _SocialPageState extends State<SocialPage> {
       debugPrint('크루 정보 로드 실패: $e');
       if (!mounted) return;
       setState(() {
-        _crewsError = '크루 정보를 불러오지 못했습니다.';
+        _crewsError = _friendlySocialError(e, '크루 정보를 불러오지 못했습니다.');
         _crewsLoading = false;
       });
     }
@@ -407,7 +466,7 @@ class _SocialPageState extends State<SocialPage> {
       debugPrint('크루 상세 로드 실패: $e');
       if (!mounted) return;
       setState(() {
-        _crewMessage = '크루 상세 정보를 불러오지 못했습니다.';
+        _crewMessage = _friendlySocialError(e, '크루 상세 정보를 불러오지 못했습니다.');
         _crewDetailLoading = false;
       });
     }
@@ -424,12 +483,16 @@ class _SocialPageState extends State<SocialPage> {
       if (!mounted) return;
       _showSnack(successMessage);
       await _loadCrews(showLoading: false);
+      _refreshSocialActionPage();
     } catch (e) {
       debugPrint('크루 작업 실패: $e');
       if (!mounted) return;
-      _showSnack('크루 작업을 처리하지 못했습니다.');
+      _showSnack(_friendlySocialError(e, '크루 작업을 처리하지 못했습니다.'));
     } finally {
-      if (mounted) setState(() => _crewActionLoading = false);
+      if (mounted) {
+        setState(() => _crewActionLoading = false);
+        _refreshSocialActionPage();
+      }
     }
   }
 
@@ -458,12 +521,17 @@ class _SocialPageState extends State<SocialPage> {
       _selectedCrewId = result.crew?.id;
       _showSnack('크루를 만들었습니다.');
       await _loadCrews(showLoading: false);
+      _refreshSocialActionPage();
     } catch (e) {
       debugPrint('크루 생성 실패: $e');
       if (!mounted) return;
-      setState(() => _crewMessage = '크루를 만들지 못했습니다.');
+      setState(() => _crewMessage = _friendlySocialError(e, '크루를 만들지 못했습니다.'));
+      _refreshSocialActionPage();
     } finally {
-      if (mounted) setState(() => _crewActionLoading = false);
+      if (mounted) {
+        setState(() => _crewActionLoading = false);
+        _refreshSocialActionPage();
+      }
     }
   }
 
@@ -496,6 +564,10 @@ class _SocialPageState extends State<SocialPage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _refreshSocialActionPage() {
+    _activeSocialPageSetState?.call(() {});
   }
 
   void _copyFriendCode() {
@@ -541,6 +613,7 @@ class _SocialPageState extends State<SocialPage> {
         backgroundColor: AppColors.background,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.text),
+        actions: _buildAppBarActions(),
       ),
       body: RefreshIndicator(
         onRefresh: _tab == _SocialTab.friends ? _loadFriends : _loadCrews,
@@ -564,6 +637,109 @@ class _SocialPageState extends State<SocialPage> {
     );
   }
 
+  List<Widget> _buildAppBarActions() {
+    final isCrewTab = _tab == _SocialTab.crews;
+    return [
+      _appBarActionButton(
+        tooltip: isCrewTab ? '크루 관리' : '친구 관리',
+        icon: isCrewTab ? Icons.groups_rounded : Icons.manage_accounts_rounded,
+        onPressed: () => _showSocialActionPage(
+          title: isCrewTab ? '크루 관리' : '친구 관리',
+          childBuilder: isCrewTab
+              ? _buildCrewManagementPage
+              : _buildFriendManagementPage,
+        ),
+      ),
+      const SizedBox(width: 8),
+    ];
+  }
+
+  Widget _appBarActionButton({
+    required String tooltip,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Icon(icon),
+      color: AppColors.secondaryText,
+    );
+  }
+
+  Widget _buildFriendManagementPage() {
+    return Column(
+      children: [
+        _buildFriendCodeCard(),
+        const SizedBox(height: 12),
+        _buildFriendSearchCard(),
+        const SizedBox(height: 18),
+        _buildFriendRequestsSection(),
+      ],
+    );
+  }
+
+  Widget _buildCrewManagementPage() {
+    return Column(
+      children: [
+        _buildMyCrewsSection(),
+        const SizedBox(height: 18),
+        _buildCreateCrewSection(),
+        const SizedBox(height: 18),
+        _buildCrewSearchSection(),
+      ],
+    );
+  }
+
+  Future<void> _showSocialActionPage({
+    required String title,
+    required Widget Function() childBuilder,
+  }) {
+    return Navigator.of(context)
+        .push<void>(
+          MaterialPageRoute(
+            builder: (context) {
+              return StatefulBuilder(
+                builder: (context, setPageState) {
+                  _activeSocialPageSetState = setPageState;
+                  return Scaffold(
+                    backgroundColor: AppColors.background,
+                    appBar: AppBar(
+                      title: Text(
+                        title,
+                        style: const TextStyle(
+                          color: AppColors.text,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      backgroundColor: AppColors.background,
+                      elevation: 0,
+                      iconTheme: const IconThemeData(color: AppColors.text),
+                      actions: [
+                        IconButton(
+                          tooltip: '닫기',
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                    body: SafeArea(
+                      child: ListView(
+                        padding: AppSpacing.page,
+                        children: [childBuilder()],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        )
+        .whenComplete(() {
+          _activeSocialPageSetState = null;
+        });
+  }
+
   Widget _buildFriendsTab() {
     if (_friendsLoading) {
       return const Padding(
@@ -579,12 +755,6 @@ class _SocialPageState extends State<SocialPage> {
           _buildErrorCard(_friendsError!, _loadFriends),
           const SizedBox(height: 12),
         ],
-        _buildFriendCodeCard(),
-        const SizedBox(height: 12),
-        _buildFriendSearchCard(),
-        const SizedBox(height: 18),
-        _buildFriendRequestsSection(),
-        const SizedBox(height: 18),
         _buildFriendListSection(),
         const SizedBox(height: 18),
         _buildFriendRankingSection(),
@@ -594,7 +764,7 @@ class _SocialPageState extends State<SocialPage> {
 
   Widget _buildFriendCodeCard() {
     return AppSurface(
-      padding: AppSpacing.cardDense,
+      padding: AppSpacing.card,
       child: Row(
         children: [
           _buildIconBox(Icons.badge_rounded),
@@ -614,6 +784,17 @@ class _SocialPageState extends State<SocialPage> {
                     letterSpacing: 0,
                   ),
                 ),
+                if (_friendCode?.isNotEmpty != true) ...[
+                  const SizedBox(height: 4),
+                  const Text(
+                    '친구 코드를 불러오면 복사할 수 있어요.',
+                    style: TextStyle(
+                      color: AppColors.secondaryText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -629,7 +810,7 @@ class _SocialPageState extends State<SocialPage> {
 
   Widget _buildFriendSearchCard() {
     return AppSurface(
-      padding: AppSpacing.cardDense,
+      padding: AppSpacing.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -719,7 +900,7 @@ class _SocialPageState extends State<SocialPage> {
   Widget _buildFriendRankingSection() {
     final ranking = _friendRanking?.results ?? const <FriendRankingItem>[];
     return AppSurface(
-      padding: AppSpacing.cardDense,
+      padding: AppSpacing.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -762,12 +943,6 @@ class _SocialPageState extends State<SocialPage> {
           _buildErrorCard(_crewsError!, _loadCrews),
           const SizedBox(height: 12),
         ],
-        _buildCreateCrewSection(),
-        const SizedBox(height: 18),
-        _buildMyCrewsSection(),
-        const SizedBox(height: 18),
-        _buildCrewSearchSection(),
-        const SizedBox(height: 18),
         _buildCrewRankingSection(),
         const SizedBox(height: 18),
         _buildCrewDetailSection(),
@@ -824,7 +999,7 @@ class _SocialPageState extends State<SocialPage> {
     ];
 
     return AppSurface(
-      padding: AppSpacing.cardDense,
+      padding: AppSpacing.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -899,7 +1074,7 @@ class _SocialPageState extends State<SocialPage> {
 
   Widget _buildCrewSearchSection() {
     return AppSurface(
-      padding: AppSpacing.cardDense,
+      padding: AppSpacing.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -972,7 +1147,7 @@ class _SocialPageState extends State<SocialPage> {
   Widget _buildCrewRankingSection() {
     final crews = _crewRanking?.crews ?? const <CrewSummary>[];
     return AppSurface(
-      padding: AppSpacing.cardDense,
+      padding: AppSpacing.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1003,7 +1178,7 @@ class _SocialPageState extends State<SocialPage> {
   Widget _buildCrewDetailSection() {
     final detail = _crewDetail;
     return AppSurface(
-      padding: AppSpacing.cardDense,
+      padding: AppSpacing.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1036,7 +1211,7 @@ class _SocialPageState extends State<SocialPage> {
     required List<Widget> children,
   }) {
     return AppSurface(
-      padding: AppSpacing.cardDense,
+      padding: AppSpacing.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1269,7 +1444,7 @@ class _SocialPageState extends State<SocialPage> {
 
   Widget _buildErrorCard(String message, Future<void> Function() retry) {
     return AppSurface(
-      padding: AppSpacing.cardDense,
+      padding: AppSpacing.card,
       color: AppColors.destructiveSoft,
       child: Row(
         children: [
@@ -1287,11 +1462,11 @@ class _SocialPageState extends State<SocialPage> {
   Widget _rowShell({required Widget child}) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
       ),
       child: child,

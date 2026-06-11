@@ -56,6 +56,44 @@ export type RunSummary = {
   paceVariance: number;
 };
 
+export type SegmentFeature = {
+  userId: string;
+  runId: number;
+  splitIndex: number;
+  summaryText: string;
+  featureJson: JsonRecord;
+  splitPaceSecondsPerKm: number;
+  avgPaceUntilSplitSecondsPerKm: number;
+  paceDeltaPrevSeconds: number | null;
+  paceDeltaAvgSeconds: number;
+  distanceMeters: number;
+  durationSeconds: number;
+  ascentMeters: number;
+  nextSplitPaceSecondsPerKm: number | null;
+  nextPaceDeltaSeconds: number | null;
+  nextOutcome: string | null;
+};
+
+export type LiveSegmentSnapshot = {
+  runSessionId: string | null;
+  completedKm: number;
+  splitIndex: number;
+  elapsedSeconds: number;
+  distanceMeters: number;
+  splitDurationSeconds: number;
+  splitPaceSeconds: number;
+  averagePaceSeconds: number;
+  previousSplitPaces: number[];
+  currentSpeedKmh: number | null;
+  ascentThisSplitMeters: number;
+  pauseCount: number;
+  goalPaceSeconds: number | null;
+  recentCoachingCategories: string[];
+  excludeRunId: number | null;
+  featureJson: JsonRecord;
+  summaryText: string;
+};
+
 export function json(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
     ...init,
@@ -265,6 +303,263 @@ export async function upsertRunFeatures(
   if (error) {
     throw new Error(`Failed to upsert run_ai_features: ${error.message}`);
   }
+}
+
+export function buildSegmentFeatures(summary: RunSummary): SegmentFeature[] {
+  const result: SegmentFeature[] = [];
+  let cumulativeDuration = 0;
+  let cumulativeDistance = 0;
+  let previousPace: number | null = null;
+
+  for (let index = 0; index < summary.splits.length; index++) {
+    const split = summary.splits[index];
+    const nextSplit = summary.splits[index + 1] ?? null;
+    const splitDistance = Math.max(0, safeNumber(split.distance_m));
+    const splitDuration = Math.max(0, safeNumber(split.duration_s));
+    const splitPace = normalizedPace(
+      split.avg_pace_s_per_km,
+      splitDuration,
+      splitDistance,
+    );
+    cumulativeDuration += splitDuration;
+    cumulativeDistance += splitDistance;
+    const averagePace = normalizedPace(
+      null,
+      cumulativeDuration,
+      cumulativeDistance,
+    );
+    const paceDeltaPrev = previousPace === null
+      ? null
+      : splitPace - previousPace;
+    const paceDeltaAvg = splitPace - averagePace;
+    const ascent = safeNumber(split.ascent_m);
+    const nextPace = nextSplit
+      ? normalizedPace(
+        nextSplit.avg_pace_s_per_km,
+        safeNumber(nextSplit.duration_s),
+        safeNumber(nextSplit.distance_m),
+      )
+      : null;
+    const nextDelta = nextPace === null ? null : nextPace - splitPace;
+    const nextOutcome = buildNextOutcome(nextDelta);
+    const phase = buildRunPhase(split.split_index, summary.splits.length);
+
+    const featureJson: JsonRecord = {
+      completed_km: split.split_index,
+      phase,
+      split_pace_s_per_km: round(splitPace, 1),
+      avg_pace_until_split_s_per_km: round(averagePace, 1),
+      pace_delta_prev_s: paceDeltaPrev === null
+        ? null
+        : round(paceDeltaPrev, 1),
+      pace_delta_avg_s: round(paceDeltaAvg, 1),
+      trend: buildTrend(paceDeltaPrev),
+      ascent_m: round(ascent, 1),
+      pause_count: 0,
+      goal_context: "none",
+      next_outcome: nextOutcome,
+    };
+
+    const summaryText = [
+      `split_index=${split.split_index}`,
+      `phase=${phase}`,
+      `split_pace_s_per_km=${round(splitPace, 1)}`,
+      `avg_pace_until_split_s_per_km=${round(averagePace, 1)}`,
+      `pace_delta_prev_s=${
+        paceDeltaPrev === null ? "none" : round(paceDeltaPrev, 1)
+      }`,
+      `pace_delta_avg_s=${round(paceDeltaAvg, 1)}`,
+      `trend=${buildTrend(paceDeltaPrev)}`,
+      `ascent_m=${round(ascent, 1)}`,
+      `next_outcome=${nextOutcome ?? "none"}`,
+    ].join(" ");
+
+    result.push({
+      userId: summary.run.user_id,
+      runId: summary.run.id,
+      splitIndex: split.split_index,
+      summaryText,
+      featureJson,
+      splitPaceSecondsPerKm: splitPace,
+      avgPaceUntilSplitSecondsPerKm: averagePace,
+      paceDeltaPrevSeconds: paceDeltaPrev,
+      paceDeltaAvgSeconds: paceDeltaAvg,
+      distanceMeters: splitDistance,
+      durationSeconds: splitDuration,
+      ascentMeters: ascent,
+      nextSplitPaceSecondsPerKm: nextPace,
+      nextPaceDeltaSeconds: nextDelta,
+      nextOutcome,
+    });
+
+    previousPace = splitPace;
+  }
+
+  return result;
+}
+
+export async function upsertSegmentFeature(
+  adminClient: SupabaseClient,
+  feature: SegmentFeature,
+  embedding: number[] | null,
+  status: "completed" | "failed" | "pending",
+  errorMessage: string | null = null,
+) {
+  const row = {
+    user_id: feature.userId,
+    run_id: feature.runId,
+    split_index: feature.splitIndex,
+    embedding: embedding ? JSON.stringify(embedding) : null,
+    feature_json: feature.featureJson,
+    summary_text: feature.summaryText,
+    split_pace_s_per_km: round(feature.splitPaceSecondsPerKm, 2),
+    avg_pace_until_split_s_per_km: round(
+      feature.avgPaceUntilSplitSecondsPerKm,
+      2,
+    ),
+    pace_delta_prev_s: feature.paceDeltaPrevSeconds === null
+      ? null
+      : round(feature.paceDeltaPrevSeconds, 2),
+    pace_delta_avg_s: round(feature.paceDeltaAvgSeconds, 2),
+    distance_m: round(feature.distanceMeters, 2),
+    duration_s: round(feature.durationSeconds, 2),
+    ascent_m: round(feature.ascentMeters, 2),
+    next_split_pace_s_per_km: feature.nextSplitPaceSecondsPerKm === null
+      ? null
+      : round(feature.nextSplitPaceSecondsPerKm, 2),
+    next_pace_delta_s: feature.nextPaceDeltaSeconds === null
+      ? null
+      : round(feature.nextPaceDeltaSeconds, 2),
+    next_outcome: feature.nextOutcome,
+    embedding_model: "gte-small",
+    embedding_status: status,
+    error_message: errorMessage,
+    embedded_at: status === "completed" ? new Date().toISOString() : null,
+  };
+
+  const { error } = await adminClient
+    .from("run_segment_ai_features")
+    .upsert(row, { onConflict: "run_id,split_index" });
+  if (error) {
+    throw new Error(
+      `Failed to upsert run_segment_ai_features: ${error.message}`,
+    );
+  }
+}
+
+export function buildLiveSegmentSnapshot(
+  payload: JsonRecord,
+): LiveSegmentSnapshot {
+  const completedKm = Math.max(
+    1,
+    Math.floor(toFiniteNumber(payload.completed_km) ?? 0),
+  );
+  const elapsedSeconds = Math.max(
+    0,
+    toFiniteNumber(payload.elapsed_seconds) ?? 0,
+  );
+  const distanceMeters = Math.max(
+    0,
+    toFiniteNumber(payload.distance_meters) ?? 0,
+  );
+  const splitDurationSeconds = Math.max(
+    0,
+    toFiniteNumber(payload.split_duration_seconds) ??
+      toFiniteNumber(payload.split_pace_seconds) ??
+      0,
+  );
+  const splitPaceSeconds = Math.max(
+    0,
+    toFiniteNumber(payload.split_pace_seconds) ?? splitDurationSeconds,
+  );
+  const averagePaceSeconds = Math.max(
+    0,
+    toFiniteNumber(payload.average_pace_seconds) ??
+      normalizedPace(null, elapsedSeconds, distanceMeters),
+  );
+  const previousSplitPaces = Array.isArray(payload.previous_split_paces)
+    ? payload.previous_split_paces
+      .map((value) => toFiniteNumber(value))
+      .filter((value): value is number => value !== null && value > 0)
+      .slice(-6)
+    : [];
+  const previousPace = previousSplitPaces.length > 0
+    ? previousSplitPaces[previousSplitPaces.length - 1]
+    : null;
+  const paceDeltaPrev = previousPace === null
+    ? null
+    : splitPaceSeconds - previousPace;
+  const paceDeltaAvg = splitPaceSeconds - averagePaceSeconds;
+  const ascentThisSplitMeters = toFiniteNumber(payload.ascent_this_split_m) ??
+    0;
+  const pauseCount = Math.max(
+    0,
+    Math.floor(toFiniteNumber(payload.pause_count) ?? 0),
+  );
+  const goalPaceSeconds = toFiniteNumber(payload.goal_pace_seconds);
+  const excludeRunId = toFiniteNumber(payload.exclude_run_id);
+  const currentSpeedKmh = toFiniteNumber(payload.current_speed_kmh);
+  const recentCoachingCategories =
+    Array.isArray(payload.recent_coaching_categories)
+      ? payload.recent_coaching_categories
+        .map((value) => String(value))
+        .filter((value) => value.trim().length > 0)
+        .slice(-4)
+      : [];
+  const phase = buildLivePhase(completedKm);
+  const trend = buildTrend(paceDeltaPrev);
+  const featureJson: JsonRecord = {
+    completed_km: completedKm,
+    phase,
+    split_pace_s_per_km: round(splitPaceSeconds, 1),
+    avg_pace_until_split_s_per_km: round(averagePaceSeconds, 1),
+    pace_delta_prev_s: paceDeltaPrev === null ? null : round(paceDeltaPrev, 1),
+    pace_delta_avg_s: round(paceDeltaAvg, 1),
+    trend,
+    ascent_m: round(ascentThisSplitMeters, 1),
+    pause_count: pauseCount,
+    goal_context: goalPaceSeconds && goalPaceSeconds > 0
+      ? `target_pace_s_per_km=${round(goalPaceSeconds, 1)}`
+      : "none",
+  };
+  const summaryText = [
+    `split_index=${completedKm}`,
+    `phase=${phase}`,
+    `split_pace_s_per_km=${round(splitPaceSeconds, 1)}`,
+    `avg_pace_until_split_s_per_km=${round(averagePaceSeconds, 1)}`,
+    `pace_delta_prev_s=${
+      paceDeltaPrev === null ? "none" : round(paceDeltaPrev, 1)
+    }`,
+    `pace_delta_avg_s=${round(paceDeltaAvg, 1)}`,
+    `trend=${trend}`,
+    `ascent_m=${round(ascentThisSplitMeters, 1)}`,
+    `pause_count=${pauseCount}`,
+    `goal_pace_s_per_km=${goalPaceSeconds ?? "none"}`,
+  ].join(" ");
+
+  return {
+    runSessionId: typeof payload.run_session_id === "string"
+      ? payload.run_session_id
+      : null,
+    completedKm,
+    splitIndex: completedKm,
+    elapsedSeconds,
+    distanceMeters,
+    splitDurationSeconds,
+    splitPaceSeconds,
+    averagePaceSeconds,
+    previousSplitPaces,
+    currentSpeedKmh,
+    ascentThisSplitMeters,
+    pauseCount,
+    goalPaceSeconds,
+    recentCoachingCategories,
+    excludeRunId: excludeRunId === null || excludeRunId <= 0
+      ? null
+      : Math.floor(excludeRunId),
+    featureJson,
+    summaryText,
+  };
 }
 
 export async function updateFeatureGeometry(
@@ -486,6 +781,136 @@ export async function callOpenAiReport(
   return parsed;
 }
 
+export function buildFallbackLiveCoaching(
+  snapshot: LiveSegmentSnapshot,
+  similarSegments: JsonRecord[] = [],
+  fallbackUsed = true,
+) {
+  const message = similarSegments.length >= 3
+    ? buildRuleBasedLiveMessage(snapshot, "similar")
+    : buildRuleBasedLiveMessage(snapshot, "insufficient");
+  return {
+    status: similarSegments.length >= 3 ? "completed" : "insufficient_data",
+    coaching_message: message,
+    coaching_category: categorizeLiveSnapshot(snapshot),
+    similar_segment_count: similarSegments.length,
+    fallback_used: fallbackUsed,
+  };
+}
+
+export async function callOpenAiLiveCoaching(
+  snapshot: LiveSegmentSnapshot,
+  similarSegments: JsonRecord[],
+): Promise<JsonRecord> {
+  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+  const model = Deno.env.get("OPENAI_MODEL") ?? "gpt-5.4-mini";
+  const prompt = {
+    task:
+      "Return one short Korean live running voice coaching sentence based on the current split and similar past split outcomes.",
+    rules: [
+      "Return only valid JSON.",
+      "coaching_message must be Korean, 20 to 60 characters, one sentence.",
+      "Suggest at most one action.",
+      "Use at most two numbers.",
+      "Do not include medical diagnosis, injury certainty, or harsh pressure.",
+      "Avoid repeating recent_coaching_categories if possible.",
+    ],
+    current_segment: {
+      completed_km: snapshot.completedKm,
+      elapsed_seconds: snapshot.elapsedSeconds,
+      distance_meters: snapshot.distanceMeters,
+      split_pace_s_per_km: snapshot.splitPaceSeconds,
+      average_pace_s_per_km: snapshot.averagePaceSeconds,
+      previous_split_paces: snapshot.previousSplitPaces,
+      current_speed_kmh: snapshot.currentSpeedKmh,
+      ascent_this_split_m: snapshot.ascentThisSplitMeters,
+      pause_count: snapshot.pauseCount,
+      goal_pace_s_per_km: snapshot.goalPaceSeconds,
+      summary_text: snapshot.summaryText,
+    },
+    similar_segments: similarSegments.slice(0, 5).map((item) => ({
+      split_index: item.split_index,
+      summary_text: item.summary_text,
+      split_pace_s_per_km: item.split_pace_s_per_km,
+      pace_delta_prev_s: item.pace_delta_prev_s,
+      next_split_pace_s_per_km: item.next_split_pace_s_per_km,
+      next_pace_delta_s: item.next_pace_delta_s,
+      next_outcome: item.next_outcome,
+      similarity_score: item.similarity_score,
+    })),
+    recent_coaching_categories: snapshot.recentCoachingCategories,
+  };
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      input: [
+        {
+          role: "system",
+          content:
+            "You are a Korean running coach speaking into a runner's ear during a run. Return compact JSON only.",
+        },
+        {
+          role: "user",
+          content: JSON.stringify(prompt),
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "live_run_coaching",
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "coaching_message",
+              "coaching_category",
+            ],
+            properties: {
+              coaching_message: { type: "string" },
+              coaching_category: { type: "string" },
+            },
+          },
+          strict: true,
+        },
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`OpenAI request failed: ${response.status} ${body}`);
+  }
+
+  const decoded = await response.json();
+  const parsed = JSON.parse(extractResponseText(decoded));
+  if (!isRecord(parsed)) {
+    throw new Error("OpenAI live coaching is not a JSON object");
+  }
+
+  const message = normalizeLiveCoachingMessage(
+    String(parsed.coaching_message ?? ""),
+    snapshot,
+  );
+  return {
+    status: "completed",
+    coaching_message: message,
+    coaching_category: String(
+      parsed.coaching_category ?? categorizeLiveSnapshot(snapshot),
+    ),
+    similar_segment_count: similarSegments.length,
+    fallback_used: false,
+  };
+}
+
 export function normalizeReport(
   summary: RunSummary,
   similarRuns: JsonRecord[],
@@ -513,6 +938,17 @@ export function normalizeReport(
     status: "completed",
     error_message: null,
   };
+}
+
+function normalizeLiveCoachingMessage(
+  message: string,
+  snapshot: LiveSegmentSnapshot,
+): string {
+  const normalized = message.replace(/\s+/g, " ").trim();
+  if (normalized.length >= 8 && normalized.length <= 80) {
+    return normalized;
+  }
+  return buildRuleBasedLiveMessage(snapshot, "similar");
 }
 
 function extractResponseText(decoded: unknown): string {
@@ -563,4 +999,81 @@ function buildPositiveSplitScore(paces: number[]): number {
   const secondAvg = secondHalf.reduce((sum, value) => sum + value, 0) /
     secondHalf.length;
   return firstAvg - secondAvg;
+}
+
+function normalizedPace(
+  rawPace: unknown,
+  durationSeconds: number,
+  distanceMeters: number,
+): number {
+  const pace = toFiniteNumber(rawPace);
+  if (pace !== null && pace > 0) return pace;
+  if (durationSeconds > 0 && distanceMeters > 0) {
+    return durationSeconds / (distanceMeters / 1000);
+  }
+  return 0;
+}
+
+function buildRunPhase(splitIndex: number, splitCount: number): string {
+  if (splitCount <= 1) return "single";
+  const ratio = splitIndex / splitCount;
+  if (ratio <= 0.34) return "early";
+  if (ratio <= 0.67) return "middle";
+  return "late";
+}
+
+function buildLivePhase(completedKm: number): string {
+  if (completedKm <= 2) return "early";
+  if (completedKm <= 6) return "middle";
+  return "late";
+}
+
+function buildTrend(delta: number | null): string {
+  if (delta === null) return "unknown";
+  if (delta >= 15) return "fading";
+  if (delta >= 5) return "slightly_fading";
+  if (delta <= -15) return "surging";
+  if (delta <= -5) return "slightly_faster";
+  return "steady";
+}
+
+function buildNextOutcome(nextDelta: number | null): string | null {
+  if (nextDelta === null) return null;
+  if (nextDelta >= 15) return "next_split_slowed";
+  if (nextDelta >= 5) return "next_split_slightly_slower";
+  if (nextDelta <= -15) return "next_split_faster";
+  if (nextDelta <= -5) return "next_split_slightly_faster";
+  return "next_split_steady";
+}
+
+function categorizeLiveSnapshot(snapshot: LiveSegmentSnapshot): string {
+  const delta = toFiniteNumber(snapshot.featureJson.pace_delta_prev_s);
+  if (delta !== null && delta >= 10) return "pace_recovery";
+  if (delta !== null && delta <= -10) return "pace_control";
+  const avgDelta = toFiniteNumber(snapshot.featureJson.pace_delta_avg_s);
+  if (avgDelta !== null && avgDelta > 10) return "rhythm";
+  return "steady";
+}
+
+function buildRuleBasedLiveMessage(
+  snapshot: LiveSegmentSnapshot,
+  source: "similar" | "insufficient",
+): string {
+  const category = categorizeLiveSnapshot(snapshot);
+  if (source === "insufficient") {
+    if (category === "pace_recovery") {
+      return "조금 느려졌어요. 다음 구간은 호흡 리듬만 다시 잡아보세요.";
+    }
+    if (category === "pace_control") {
+      return "페이스가 빨라졌어요. 초반 힘을 조금 아껴가세요.";
+    }
+    return "좋아요. 지금 리듬을 편하게 유지해보세요.";
+  }
+  if (category === "pace_recovery") {
+    return "비슷한 구간에선 더 밀리기 쉬웠어요. 호흡만 안정시켜보세요.";
+  }
+  if (category === "pace_control") {
+    return "비슷한 기록보다 빠릅니다. 힘을 조금 아껴가세요.";
+  }
+  return "비슷한 기록보다 안정적이에요. 지금 리듬을 이어가세요.";
 }

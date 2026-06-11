@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -26,7 +27,15 @@ import 'social_page.dart';
 import 'statistics_page.dart';
 import 'territory_detail_page.dart';
 
-enum _TerritoryLayer { personal, friends, crew }
+enum _TerritoryLayer { personal, crew }
+
+@visibleForTesting
+typedef FetchMapTerritories =
+    Future<dynamic> Function({
+      required GoogleMapController? mapController,
+      required LatLng? currentPosition,
+      TerritoryScope? scope,
+    });
 
 @visibleForTesting
 String? defaultCrewContributionIdFor(Iterable<CrewSummary> crews) {
@@ -46,14 +55,34 @@ String? defaultCrewContributionIdFor(Iterable<CrewSummary> crews) {
   return joinedCrews.first.id.trim();
 }
 
+@visibleForTesting
+CrewSummary? crewSummaryForTopBanner(
+  Iterable<CrewSummary> crews,
+  String? crewId,
+) {
+  final normalizedCrewId = crewId?.trim();
+  if (normalizedCrewId == null || normalizedCrewId.isEmpty) {
+    return null;
+  }
+
+  for (final crew in crews) {
+    if (crew.id.trim() == normalizedCrewId) {
+      return crew;
+    }
+  }
+  return null;
+}
+
 class RunningMapPage extends StatefulWidget {
   final LatLng? initialFocusTarget;
   final double initialFocusZoom;
+  final FetchMapTerritories? fetchTerritories;
 
   const RunningMapPage({
     super.key,
     this.initialFocusTarget,
     this.initialFocusZoom = 16.5,
+    this.fetchTerritories,
   });
 
   @override
@@ -106,8 +135,12 @@ class _RunningMapPageState extends State<RunningMapPage>
   // 점령, 랭킹, 포인트 데이터
   double _occupiedArea = 0.0;
   double _points = 0.0;
+  double _crewOccupiedArea = 0.0;
+  double _crewPoints = 0.0;
   double? _weightKg;
   int _ranking = 0;
+  int _crewRanking = 0;
+  String? _crewCompetitionCrewId;
   String _userColorHex = "#448AFF"; // 기본 컬러
 
   StreamSubscription<Position>? _positionStream;
@@ -408,9 +441,11 @@ class _RunningMapPageState extends State<RunningMapPage>
   // API 최적화 변수
   DateTime? _lastFetchTime;
   DateTime? _lastUserRankingFetchTime;
+  DateTime? _lastCrewRankingFetchTime;
   bool _isFetchingTerritory = false;
   int _territoryFetchToken = 0;
   Future<void>? _userRankingFetchFuture;
+  Future<void>? _crewRankingFetchFuture;
   bool _isCountdownActive = false;
 
   // 실시간 경로 및 영토 데이터
@@ -471,6 +506,8 @@ class _RunningMapPageState extends State<RunningMapPage>
       _routePointSamples.map((point) => point.latLng).toList(growable: false);
   List<List<RunRoutePoint>> get _routeSegments =>
       splitRoutePointSegments(_routePointSamples);
+  bool get _isAndroidPlatform => !kIsWeb && Platform.isAndroid;
+  bool get _isIosPlatform => !kIsWeb && Platform.isIOS;
 
   @override
   void initState() {
@@ -487,7 +524,7 @@ class _RunningMapPageState extends State<RunningMapPage>
     _startTerritoryUpdates();
     unawaited(_initializeLocationTracking());
     unawaited(() async {
-      if (Platform.isAndroid) {
+      if (_isAndroidPlatform) {
         await _restoreAndroidBackgroundSnapshot();
       }
     }());
@@ -509,7 +546,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Future<void> _beginIosCountdownBackgroundTask() async {
-    if (!Platform.isIOS || _iosCountdownBackgroundTaskActive) return;
+    if (!_isIosPlatform || _iosCountdownBackgroundTaskActive) return;
     try {
       await _nativeAdapter.invoke<void>('beginCountdownBackgroundTask');
       _iosCountdownBackgroundTaskActive = true;
@@ -519,7 +556,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Future<void> _endIosCountdownBackgroundTask() async {
-    if (!Platform.isIOS || !_iosCountdownBackgroundTaskActive) return;
+    if (!_isIosPlatform || !_iosCountdownBackgroundTaskActive) return;
     try {
       await _nativeAdapter.invoke<void>('endCountdownBackgroundTask');
     } catch (e) {
@@ -625,7 +662,7 @@ class _RunningMapPageState extends State<RunningMapPage>
       _isAppInForeground ? 'resumed' : 'background';
 
   bool get _shouldLetNativeHandleSplitAnnouncement =>
-      Platform.isIOS && !_isAppInForeground && _iosSplitTrackingActive;
+      _isIosPlatform && !_isAppInForeground && _iosSplitTrackingActive;
 
   Map<String, dynamic>? _iosSplitTrackingPayload({
     required String lifecycleState,
@@ -650,7 +687,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Future<void> _startIosSplitTracking() async {
-    if (!Platform.isIOS) return;
+    if (!_isIosPlatform) return;
     final payload = _iosSplitTrackingPayload(
       lifecycleState: _appLifecycleStateName,
       reason: 'start',
@@ -667,7 +704,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Future<void> _updateIosSplitTracking({required String reason}) async {
-    if (!Platform.isIOS || !_iosSplitTrackingActive) return;
+    if (!_isIosPlatform || !_iosSplitTrackingActive) return;
     final payload = _iosSplitTrackingPayload(
       lifecycleState: _appLifecycleStateName,
       reason: reason,
@@ -682,7 +719,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Future<void> _stopIosSplitTracking({required String reason}) async {
-    if (!Platform.isIOS) return;
+    if (!_isIosPlatform) return;
     try {
       await _nativeAdapter.invoke<void>('stopIosSplitTracking', {
         'reason': reason,
@@ -695,7 +732,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Future<void> _syncIosSplitTrackingStatus() async {
-    if (!Platform.isIOS ||
+    if (!_isIosPlatform ||
         !_iosSplitTrackingActive ||
         _iosSplitTrackingStatusSyncInFlight) {
       return;
@@ -790,7 +827,7 @@ class _RunningMapPageState extends State<RunningMapPage>
         return;
       }
       if (!_isAppInForeground) {
-        if (Platform.isAndroid) {
+        if (_isAndroidPlatform) {
           await _nativeAdapter.invoke<void>(
             'announceSplitInBackground',
             speech,
@@ -798,7 +835,7 @@ class _RunningMapPageState extends State<RunningMapPage>
           markSplitAnnouncementDispatched();
           return;
         }
-        if (Platform.isIOS) {
+        if (_isIosPlatform) {
           await _nativeAdapter.invoke<void>('announceSplitInBackground', {
             'speech': speech,
             'completedKm': completedKm,
@@ -940,7 +977,7 @@ class _RunningMapPageState extends State<RunningMapPage>
     _isAppInForeground = state == AppLifecycleState.resumed;
     if (state == AppLifecycleState.resumed) {
       unawaited(_fetchUserRanking(force: true));
-      if (Platform.isAndroid && _isStarted) {
+      if (_isAndroidPlatform && _isStarted) {
         unawaited(() async {
           await _restoreAndroidBackgroundSnapshot();
           await _stopAndroidBackgroundTracking();
@@ -963,15 +1000,15 @@ class _RunningMapPageState extends State<RunningMapPage>
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       if (_isStarted) {
-        if (Platform.isAndroid) {
+        if (_isAndroidPlatform) {
           unawaited(_startAndroidBackgroundTracking());
-        } else if (Platform.isIOS) {
+        } else if (_isIosPlatform) {
           unawaited(_updateIosSplitTracking(reason: state.name));
         }
-      } else if (_isCountdownActive && Platform.isIOS) {
+      } else if (_isCountdownActive && _isIosPlatform) {
         _completeCountdown();
         _startLocationTracking(enableBackgroundUpdates: true);
-      } else if (Platform.isIOS) {
+      } else if (_isIosPlatform) {
         _positionStream?.cancel();
       }
     }
@@ -1003,7 +1040,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Future<void> _startAndroidBackgroundTracking() async {
-    if (!Platform.isAndroid || !_isStarted || _currentRunId == null) {
+    if (!_isAndroidPlatform || !_isStarted || _currentRunId == null) {
       return;
     }
 
@@ -1026,7 +1063,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Future<void> _stopAndroidBackgroundTracking() async {
-    if (!Platform.isAndroid) {
+    if (!_isAndroidPlatform) {
       return;
     }
 
@@ -1038,7 +1075,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   }
 
   Future<void> _restoreAndroidBackgroundSnapshot() async {
-    if (!Platform.isAndroid) {
+    if (!_isAndroidPlatform) {
       return;
     }
 
@@ -1188,7 +1225,7 @@ class _RunningMapPageState extends State<RunningMapPage>
     if (_currentRunId == null) return;
 
     try {
-      if (Platform.isAndroid) {
+      if (_isAndroidPlatform) {
         final granted = await _nativeAdapter.invoke<bool>(
           'requestNotificationPermission',
         );
@@ -1259,7 +1296,11 @@ class _RunningMapPageState extends State<RunningMapPage>
   void _startTerritoryUpdates() {
     _territoryTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
       _fetchTerritories();
-      _fetchUserRanking();
+      if (_territoryLayer == _TerritoryLayer.crew) {
+        _fetchCrewCompetitionRanking();
+      } else {
+        _fetchUserRanking();
+      }
     });
   }
 
@@ -1313,6 +1354,65 @@ class _RunningMapPageState extends State<RunningMapPage>
     return future.whenComplete(() {
       if (identical(_userRankingFetchFuture, future)) {
         _userRankingFetchFuture = null;
+      }
+    });
+  }
+
+  Future<void> _fetchCrewCompetitionRanking({bool force = false}) {
+    final now = DateTime.now();
+    if (!force &&
+        _lastCrewRankingFetchTime != null &&
+        now.difference(_lastCrewRankingFetchTime!).inSeconds < 5) {
+      return _crewRankingFetchFuture ?? Future.value();
+    }
+
+    final inFlight = _crewRankingFetchFuture;
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    final future = () async {
+      _lastCrewRankingFetchTime = now;
+      try {
+        final myCrews = await CrewService.instance.fetchMyCrews();
+        final selectedCrewId = defaultCrewContributionIdFor(myCrews);
+        if (selectedCrewId == null) {
+          if (mounted) {
+            setState(() {
+              _crewCompetitionCrewId = null;
+              _crewOccupiedArea = 0.0;
+              _crewPoints = 0.0;
+              _crewRanking = 0;
+            });
+          }
+          return;
+        }
+
+        final ranking = await CrewService.instance.fetchCrewRanking(
+          seasonType: 'week',
+          anchorDate: DateTime.now(),
+          limit: 100,
+        );
+        if (!mounted) return;
+
+        final summary =
+            crewSummaryForTopBanner(ranking.crews, selectedCrewId) ??
+            crewSummaryForTopBanner(myCrews, selectedCrewId);
+        setState(() {
+          _crewCompetitionCrewId = selectedCrewId;
+          _crewOccupiedArea = (summary?.cumulativeAreaM2 ?? 0.0) / 1000000;
+          _crewPoints = summary?.seasonScore ?? 0.0;
+          _crewRanking = summary?.displayRank ?? 0;
+        });
+      } catch (e) {
+        debugPrint('크루 랭킹 정보 로드 실패: $e');
+      }
+    }();
+
+    _crewRankingFetchFuture = future;
+    return future.whenComplete(() {
+      if (identical(_crewRankingFetchFuture, future)) {
+        _crewRankingFetchFuture = null;
       }
     });
   }
@@ -1379,7 +1479,8 @@ class _RunningMapPageState extends State<RunningMapPage>
     _lastFetchTime = now;
 
     try {
-      final data = await RunningMapService.instance.fetchTerritories(
+      final data = await (widget.fetchTerritories ??
+              RunningMapService.instance.fetchTerritories)(
         mapController: mapController,
         currentPosition: _currentPosition,
         scope: scope,
@@ -1448,12 +1549,10 @@ class _RunningMapPageState extends State<RunningMapPage>
     return '${trimmed.substring(0, 7)}...';
   }
 
-  TerritoryScope get _territoryScope {
+  TerritoryScope? get _territoryScope {
     switch (_territoryLayer) {
       case _TerritoryLayer.personal:
-        return TerritoryScope.personal;
-      case _TerritoryLayer.friends:
-        return TerritoryScope.friends;
+        return null;
       case _TerritoryLayer.crew:
         return TerritoryScope.crew;
     }
@@ -1468,6 +1567,11 @@ class _RunningMapPageState extends State<RunningMapPage>
       _territoryMarkerBounds.clear();
     });
     _nicknameCache.clear();
+    if (layer == _TerritoryLayer.crew) {
+      unawaited(_fetchCrewCompetitionRanking(force: true));
+    } else {
+      unawaited(_fetchUserRanking(force: true));
+    }
     unawaited(_fetchTerritories(force: true));
   }
 
@@ -1915,7 +2019,7 @@ class _RunningMapPageState extends State<RunningMapPage>
 
   void _startLocationTracking({required bool enableBackgroundUpdates}) {
     _positionStream?.cancel();
-    final LocationSettings locationSettings = Platform.isIOS
+    final LocationSettings locationSettings = _isIosPlatform
         ? AppleSettings(
             accuracy: enableBackgroundUpdates
                 ? LocationAccuracy.bestForNavigation
@@ -2041,7 +2145,7 @@ class _RunningMapPageState extends State<RunningMapPage>
       }
     });
 
-    if (Platform.isIOS) {
+    if (_isIosPlatform) {
       unawaited(_beginIosCountdownBackgroundTask());
       unawaited(_ensureBackgroundReadyForRun());
       _startLocationTracking(enableBackgroundUpdates: true);
@@ -2150,13 +2254,13 @@ class _RunningMapPageState extends State<RunningMapPage>
         permission = await Geolocator.requestPermission();
       }
 
-      if (Platform.isIOS) {
+      if (_isIosPlatform) {
         if (permission != LocationPermission.always) {
           debugPrint(
             'Background location permission is not set to always: $permission',
           );
         }
-      } else if (Platform.isAndroid) {
+      } else if (_isAndroidPlatform) {
         if (permission == LocationPermission.denied ||
             permission == LocationPermission.deniedForever) {
           debugPrint('Android location permission is not granted: $permission');
@@ -2210,6 +2314,11 @@ class _RunningMapPageState extends State<RunningMapPage>
     );
   }
 
+  void _dismissLocationIssue() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+  }
+
   Future<bool> _confirmRunSaveRetry() async {
     if (!mounted) return false;
 
@@ -2247,7 +2356,7 @@ class _RunningMapPageState extends State<RunningMapPage>
     _timer?.cancel();
     _refreshRunningMetrics();
     try {
-      if (Platform.isAndroid) {
+      if (_isAndroidPlatform) {
         await _stopAndroidBackgroundTracking();
       }
       await _endLiveActivity('ended');
@@ -2489,7 +2598,7 @@ class _RunningMapPageState extends State<RunningMapPage>
   Future<void> _cancelRunning({bool skipDialog = false}) async {
     if (skipDialog) {
       _timer?.cancel();
-      if (Platform.isAndroid) {
+      if (_isAndroidPlatform) {
         await _stopAndroidBackgroundTracking();
       }
       await _endLiveActivity('cancelled');
@@ -2612,6 +2721,22 @@ class _RunningMapPageState extends State<RunningMapPage>
     return "$m'${s.toString().padLeft(2, '0')}\"";
   }
 
+  bool get _isCrewCompetitionLayer => _territoryLayer == _TerritoryLayer.crew;
+
+  RankingScope get _rankingScope {
+    return switch (_territoryLayer) {
+      _TerritoryLayer.personal => RankingScope.personal,
+      _TerritoryLayer.crew => RankingScope.crew,
+    };
+  }
+
+  double get _bannerOccupiedArea =>
+      _isCrewCompetitionLayer ? _crewOccupiedArea : _occupiedArea;
+
+  double get _bannerPoints => _isCrewCompetitionLayer ? _crewPoints : _points;
+
+  int get _bannerRanking => _isCrewCompetitionLayer ? _crewRanking : _ranking;
+
   Widget _buildTopBanner() {
     return Positioned(
       top: MediaQuery.of(context).padding.top + 10,
@@ -2637,7 +2762,7 @@ class _RunningMapPageState extends State<RunningMapPage>
               child: _buildTopBannerItem(
                 Icons.grid_view_rounded,
                 "점령 면적",
-                "${_occupiedArea.toStringAsFixed(2)} km²",
+                "${_bannerOccupiedArea.toStringAsFixed(2)} km²",
               ),
             ),
             _buildTopDivider(),
@@ -2645,13 +2770,18 @@ class _RunningMapPageState extends State<RunningMapPage>
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const RankingPage()),
+                  MaterialPageRoute(
+                    builder: (context) => RankingPage(
+                      scope: _rankingScope,
+                      currentCrewId: _crewCompetitionCrewId,
+                    ),
+                  ),
                 );
               },
               child: _buildTopBannerItem(
                 Icons.leaderboard_rounded,
                 "랭킹",
-                "$_ranking위",
+                _bannerRanking > 0 ? "$_bannerRanking위" : "-",
               ),
             ),
             _buildTopDivider(),
@@ -2667,7 +2797,7 @@ class _RunningMapPageState extends State<RunningMapPage>
               child: _buildTopBannerItem(
                 Icons.stars_rounded,
                 "포인트",
-                "${_points.toStringAsFixed(2)} P",
+                "${_bannerPoints.toStringAsFixed(2)} P",
               ),
             ),
           ],
@@ -2736,12 +2866,14 @@ class _RunningMapPageState extends State<RunningMapPage>
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildNavItem(Icons.insights_rounded, "분석", false, () {
+              _dismissLocationIssue();
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const StatisticsPage()),
               );
             }),
             _buildNavItem(Icons.bar_chart_rounded, "통계", false, () {
+              _dismissLocationIssue();
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const RunHistoryPage()),
@@ -2749,12 +2881,14 @@ class _RunningMapPageState extends State<RunningMapPage>
             }),
             const SizedBox(width: 80),
             _buildNavItem(Icons.people_rounded, "소셜", false, () {
+              _dismissLocationIssue();
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const SocialPage()),
               );
             }),
             _buildNavItem(Icons.person_rounded, "마이", false, () async {
+              _dismissLocationIssue();
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const MyPage()),
@@ -2827,15 +2961,48 @@ class _RunningMapPageState extends State<RunningMapPage>
     return Positioned(
       top: MediaQuery.of(context).padding.top + 92,
       left: 16,
-      right: 16,
-      child: AppSegmentedControl<_TerritoryLayer>(
-        value: _territoryLayer,
-        onChanged: _onTerritoryLayerChanged,
-        options: const [
-          AppSegmentOption(value: _TerritoryLayer.personal, label: '개인'),
-          AppSegmentOption(value: _TerritoryLayer.friends, label: '친구'),
-          AppSegmentOption(value: _TerritoryLayer.crew, label: '크루'),
-        ],
+      child: AppSurface(
+        width: null,
+        padding: const EdgeInsets.all(3),
+        radius: 22,
+        color: Colors.white.withValues(alpha: 0.94),
+        shadow: true,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            AppSegmentOption(value: _TerritoryLayer.personal, label: '개인'),
+            AppSegmentOption(value: _TerritoryLayer.crew, label: '크루'),
+          ].map(_buildTerritoryLayerChip).toList(growable: false),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTerritoryLayerChip(AppSegmentOption<_TerritoryLayer> option) {
+    final selected = option.value == _territoryLayer;
+    return InkWell(
+      onTap: selected ? null : () => _onTerritoryLayerChanged(option.value),
+      borderRadius: BorderRadius.circular(19),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: 34,
+        constraints: const BoxConstraints(minWidth: 46),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(19),
+        ),
+        child: Text(
+          option.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: selected ? Colors.white : AppColors.secondaryText,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
     );
   }

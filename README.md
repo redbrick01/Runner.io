@@ -170,11 +170,13 @@ flutter pub get
 
 ### 환경 변수 및 키 설정
 
-Flutter 앱은 Supabase URL과 anon key를 `--dart-define`으로 주입합니다. 값은 Git에 커밋하지 않고 로컬 shell, CI secret, 배포 설정에서 관리합니다.
+Flutter 앱은 Supabase URL과 anon key를 `--dart-define-from-file=config.json`으로 주입합니다. `config.json`은 Git에 커밋하지 않고 로컬 파일, CI secret, 배포 설정에서 관리합니다.
 
-```bash
-export SUPABASE_URL="https://<project-ref>.supabase.co"
-export SUPABASE_ANON_KEY="<supabase-anon-key>"
+```json
+{
+  "SUPABASE_URL": "https://ifqrceunenzqusppfxgi.supabase.co",
+  "SUPABASE_ANON_KEY": "<supabase-anon-key>"
+}
 ```
 
 Google Maps API key는 Git에 커밋하지 않습니다.
@@ -205,18 +207,14 @@ SUPABASE_SERVICE_ROLE_KEY
 ### 앱 실행
 
 ```bash
-flutter run \
-  --dart-define=SUPABASE_URL="$SUPABASE_URL" \
-  --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+flutter run --dart-define-from-file=config.json
 ```
 
 대상 기기를 지정하려면:
 
 ```bash
 flutter devices
-flutter run -d <device-id> \
-  --dart-define=SUPABASE_URL="$SUPABASE_URL" \
-  --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+flutter run -d <device-id> --dart-define-from-file=config.json
 ```
 
 ### Supabase 로컬 실행
@@ -351,7 +349,7 @@ DB 구조는 `supabase/migrations/20260523142500_initial_remote_schema.sql` 및 
 
 | 증상 | 확인할 항목 |
 |---|---|
-| 앱 시작 시 Supabase 설정 오류 화면이 표시됨 | `flutter run` 명령에 `--dart-define=SUPABASE_URL=...`와 `--dart-define=SUPABASE_ANON_KEY=...`가 포함되어 있는지 확인 |
+| 앱 시작 시 Supabase 설정 오류 화면이 표시됨 | `config.json`에 `SUPABASE_URL`, `SUPABASE_ANON_KEY`가 들어 있고 `flutter run --dart-define-from-file=config.json`로 실행했는지 확인 |
 | Android 지도 타일이 비어 있거나 Google Maps 인증 오류가 표시됨 | `android/local.properties` 또는 환경변수 `GOOGLE_MAPS_API_KEY`가 설정되어 있고 Android 앱 ID `com.runnerio.app` 제한에 포함되어 있는지 확인 |
 | iOS 지도 초기화가 실패함 | iOS 빌드 설정의 `GOOGLE_MAPS_API_KEY` 값과 bundle identifier 제한을 확인 |
 | 위치가 표시되지 않음 | 기기 위치 서비스, 앱 위치 권한, 에뮬레이터/시뮬레이터 위치 mock 설정을 확인 |

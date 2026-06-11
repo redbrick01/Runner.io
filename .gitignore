@@ -41,6 +41,9 @@ windows/flutter/ephemeral/
 # Supabase local/link metadata
 supabase/.temp/
 
+# Local dart-define secrets
+config.json
+
 # Symbolication related
 app.*.symbols
 
@@ -66,3 +69,6 @@ ios/Flutter/Local.xcconfig
 
 # Local feature worktrees
 .worktrees/
+
+# Superpowers visual companion sessions
+.superpowers/

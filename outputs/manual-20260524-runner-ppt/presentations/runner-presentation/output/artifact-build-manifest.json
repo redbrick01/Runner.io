@@ -1,0 +1,307 @@
+{
+  "output": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/output/runner-io-web-presentation.pptx",
+  "outputBytes": 11123515,
+  "slideCount": 29,
+  "slideSize": {
+    "width": 1280,
+    "height": 720
+  },
+  "previewDir": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh",
+  "previewPaths": [
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-01.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-02.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-03.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-04.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-05.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-06.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-07.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-08.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-09.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-10.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-11.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-12.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-13.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-14.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-15.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-16.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-17.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-18.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-19.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-20.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-21.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-22.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-23.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-24.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-25.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-26.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-27.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-28.png",
+    "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/preview-refresh/slide-29.png"
+  ],
+  "layoutDir": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh",
+  "layoutResults": [
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-01.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-02.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-03.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-04.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-05.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-06.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-07.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-08.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-09.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-10.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-11.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-12.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-13.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-14.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-15.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-16.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-17.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-18.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-19.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-20.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-21.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-22.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-23.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-24.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-25.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-26.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-27.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-28.layout.json"
+    },
+    {
+      "layoutPath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/layout/refresh/slide-29.layout.json"
+    }
+  ],
+  "slides": [
+    {
+      "index": 1,
+      "requestedSlideNumber": 1,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-01.mjs",
+      "exportName": "slide01"
+    },
+    {
+      "index": 2,
+      "requestedSlideNumber": 2,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-02.mjs",
+      "exportName": "slide02"
+    },
+    {
+      "index": 3,
+      "requestedSlideNumber": 3,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-03.mjs",
+      "exportName": "slide03"
+    },
+    {
+      "index": 4,
+      "requestedSlideNumber": 4,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-04.mjs",
+      "exportName": "slide04"
+    },
+    {
+      "index": 5,
+      "requestedSlideNumber": 5,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-05.mjs",
+      "exportName": "slide05"
+    },
+    {
+      "index": 6,
+      "requestedSlideNumber": 6,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-06.mjs",
+      "exportName": "slide06"
+    },
+    {
+      "index": 7,
+      "requestedSlideNumber": 7,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-07.mjs",
+      "exportName": "slide07"
+    },
+    {
+      "index": 8,
+      "requestedSlideNumber": 8,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-08.mjs",
+      "exportName": "slide08"
+    },
+    {
+      "index": 9,
+      "requestedSlideNumber": 9,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-09.mjs",
+      "exportName": "slide09"
+    },
+    {
+      "index": 10,
+      "requestedSlideNumber": 10,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-10.mjs",
+      "exportName": "slide10"
+    },
+    {
+      "index": 11,
+      "requestedSlideNumber": 11,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-11.mjs",
+      "exportName": "slide11"
+    },
+    {
+      "index": 12,
+      "requestedSlideNumber": 12,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-12.mjs",
+      "exportName": "slide12"
+    },
+    {
+      "index": 13,
+      "requestedSlideNumber": 13,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-13.mjs",
+      "exportName": "slide13"
+    },
+    {
+      "index": 14,
+      "requestedSlideNumber": 14,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-14.mjs",
+      "exportName": "slide14"
+    },
+    {
+      "index": 15,
+      "requestedSlideNumber": 15,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-15.mjs",
+      "exportName": "slide15"
+    },
+    {
+      "index": 16,
+      "requestedSlideNumber": 16,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-16.mjs",
+      "exportName": "slide16"
+    },
+    {
+      "index": 17,
+      "requestedSlideNumber": 17,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-17.mjs",
+      "exportName": "slide17"
+    },
+    {
+      "index": 18,
+      "requestedSlideNumber": 18,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-18.mjs",
+      "exportName": "slide18"
+    },
+    {
+      "index": 19,
+      "requestedSlideNumber": 19,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-19.mjs",
+      "exportName": "slide19"
+    },
+    {
+      "index": 20,
+      "requestedSlideNumber": 20,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-20.mjs",
+      "exportName": "slide20"
+    },
+    {
+      "index": 21,
+      "requestedSlideNumber": 21,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-21.mjs",
+      "exportName": "slide21"
+    },
+    {
+      "index": 22,
+      "requestedSlideNumber": 22,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-22.mjs",
+      "exportName": "slide22"
+    },
+    {
+      "index": 23,
+      "requestedSlideNumber": 23,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-23.mjs",
+      "exportName": "slide23"
+    },
+    {
+      "index": 24,
+      "requestedSlideNumber": 24,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-24.mjs",
+      "exportName": "slide24"
+    },
+    {
+      "index": 25,
+      "requestedSlideNumber": 25,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-25.mjs",
+      "exportName": "slide25"
+    },
+    {
+      "index": 26,
+      "requestedSlideNumber": 26,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-26.mjs",
+      "exportName": "slide26"
+    },
+    {
+      "index": 27,
+      "requestedSlideNumber": 27,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-27.mjs",
+      "exportName": "slide27"
+    },
+    {
+      "index": 28,
+      "requestedSlideNumber": 28,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-28.mjs",
+      "exportName": "slide28"
+    },
+    {
+      "index": 29,
+      "requestedSlideNumber": 29,
+      "modulePath": "/Users/yw0410/Desktop/Project/runner_flutter/outputs/manual-20260524-runner-ppt/presentations/runner-presentation/slides-refresh/slide-29.mjs",
+      "exportName": "slide29"
+    }
+  ]
+}

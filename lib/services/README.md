@@ -12,6 +12,8 @@
 | `auth_service.dart` | Supabase Auth 로그인, 회원가입, 로그아웃 |
 | `run_service.dart` | `create-run` Edge Function 호출 |
 | `run_history_service.dart` | `run-history` 호출 및 `RunHistoryEntry` 변환 |
+| `live_run_coaching_service.dart` | 러닝 중 현재 split snapshot을 `generate-live-run-coaching`으로 보내 AI 코칭 문구를 조회 |
+| `live_run_coaching_settings.dart` | AI 페이스 코치 ON/OFF 로컬 설정 저장 |
 | `statistics_service.dart` | 러닝 기록 목록을 기간별 요약, 평균 페이스, 최근 7일 거리, 개인 최고 기록으로 집계 |
 | `point_history_service.dart` | `point-history` 호출 |
 | `ranking_service.dart` | `profile-leaderboard` 호출, top/context 랭킹 결과 정리 |
@@ -39,6 +41,7 @@
 
 - 인증
 - 러닝 저장
+- 러닝 중 AI 페이스 코칭
 - 러닝 기록 조회
 - 러닝 기록 기반 개인 분석 집계
 - 포인트 이력 조회

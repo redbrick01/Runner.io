@@ -29,6 +29,26 @@ void main() {
 
       expect(defaultCrewContributionIdFor(crews), isNull);
     });
+
+    test('finds selected crew summary for crew competition banner', () {
+      final crews = [
+        _crew(id: 'crew-1', isDefaultContribution: false),
+        _crew(
+          id: 'crew-2',
+          isDefaultContribution: true,
+          seasonScore: 42,
+          cumulativeAreaM2: 2500000,
+          displayRank: 3,
+        ),
+      ];
+
+      final summary = crewSummaryForTopBanner(crews, 'crew-2');
+
+      expect(summary?.id, 'crew-2');
+      expect(summary?.seasonScore, 42);
+      expect(summary?.cumulativeAreaM2, 2500000);
+      expect(summary?.displayRank, 3);
+    });
   });
 }
 
@@ -36,14 +56,18 @@ CrewSummary _crew({
   required String id,
   bool isJoined = true,
   required bool isDefaultContribution,
+  double seasonScore = 0,
+  double cumulativeAreaM2 = 0,
+  int? displayRank,
 }) {
   return CrewSummary(
     id: id,
     name: id,
     memberCount: 1,
-    seasonScore: 0,
-    cumulativeAreaM2: 0,
+    seasonScore: seasonScore,
+    cumulativeAreaM2: cumulativeAreaM2,
     isJoined: isJoined,
     isDefaultContribution: isDefaultContribution,
+    displayRank: displayRank,
   );
 }

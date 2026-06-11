@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Runner Locked Pace Test">
+  <metadata>
+    <name>Locked Run Pace Test</name>
+  </metadata>
+  <wpt lat="37.566500" lon="126.978000">
+    <name>Runner Locked Pace Test Start</name>
+  </wpt>
+  <trk>
+    <name>Locked Run Pace Test</name>
+    <trkseg>
+      <trkpt lat="37.566500" lon="126.978000"><time>2026-05-28T13:00:00Z</time></trkpt>
+      <trkpt lat="37.567400" lon="126.978000"><time>2026-05-28T13:00:15Z</time></trkpt>
+      <trkpt lat="37.568300" lon="126.978000"><time>2026-05-28T13:00:30Z</time></trkpt>
+      <trkpt lat="37.569200" lon="126.978000"><time>2026-05-28T13:00:45Z</time></trkpt>
+      <trkpt lat="37.570100" lon="126.978000"><time>2026-05-28T13:01:00Z</time></trkpt>
+      <trkpt lat="37.571000" lon="126.978000"><time>2026-05-28T13:01:15Z</time></trkpt>
+      <trkpt lat="37.571900" lon="126.978000"><time>2026-05-28T13:01:30Z</time></trkpt>
+      <trkpt lat="37.572800" lon="126.978000"><time>2026-05-28T13:01:45Z</time></trkpt>
+      <trkpt lat="37.573700" lon="126.978000"><time>2026-05-28T13:02:00Z</time></trkpt>
+      <trkpt lat="37.574600" lon="126.978000"><time>2026-05-28T13:02:15Z</time></trkpt>
+      <trkpt lat="37.575500" lon="126.978000"><time>2026-05-28T13:02:30Z</time></trkpt>
+      <trkpt lat="37.576400" lon="126.978000"><time>2026-05-28T13:02:45Z</time></trkpt>
+      <trkpt lat="37.577300" lon="126.978000"><time>2026-05-28T13:03:00Z</time></trkpt>
+      <trkpt lat="37.578200" lon="126.978000"><time>2026-05-28T13:03:15Z</time></trkpt>
+      <trkpt lat="37.579100" lon="126.978000"><time>2026-05-28T13:03:30Z</time></trkpt>
+      <trkpt lat="37.580000" lon="126.978000"><time>2026-05-28T13:03:45Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

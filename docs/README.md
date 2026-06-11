@@ -29,6 +29,8 @@
 | 문서 | 목적 |
 |---|---|
 | `new_features/ai_running_similarity_analysis/plan.md` | Supabase embedding, PostGIS/수치 유사도 검색, 서버 LLM 비교 리포트 개발 계획 |
+| `new_features/ai_running_similarity_analysis/live_voice_coaching_plan.md` | 1km 페이스 알림에 과거 유사 구간 벡터 검색 기반 AI 음성 코칭을 결합하는 확장 계획 |
+| `new_features/ai_running_similarity_analysis/live_voice_coaching_implementation_report_20260528.md` | AI 유사 구간 기반 실시간 음성 코칭 MVP 구현 범위, 변경 파일, 검증 결과 |
 | `new_features/ai_running_similarity_analysis/verification_test_plan.md` | AI 러닝 유사도 분석 기능의 자동 테스트, 수동 QA, acceptance criteria |
 | `new_features/ai_running_similarity_analysis/test_report_20260524.md` | AI 러닝 유사도 분석 기능의 2026-05-24 검증 결과 |
 | `new_features/ai_running_similarity_analysis/implementation_report_20260524.md` | AI 러닝 유사도 분석 기능의 구현 범위, 변경 파일, 검증 결과 |

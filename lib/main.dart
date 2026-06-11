@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -27,6 +28,13 @@ class _AppBootstrapState extends State<AppBootstrap> {
   Future<void> _initializeApp() async {
     debugPrint('App bootstrap started');
     debugPrint('Supabase initialize started');
+
+    if (kDebugMode && !SupabaseConfig.isConfigured) {
+      debugPrint(
+        'Supabase configuration missing; using debug running test mode.',
+      );
+      return;
+    }
 
     SupabaseConfig.requireConfigured();
     await Supabase.initialize(
@@ -69,7 +77,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Supabase 현재 세션 확인
-    final session = Supabase.instance.client.auth.currentSession;
+    final isDebugRunningTestMode = kDebugMode && !SupabaseConfig.isConfigured;
+    final session = isDebugRunningTestMode
+        ? null
+        : Supabase.instance.client.auth.currentSession;
 
     return MaterialApp(
       title: 'Runner Game',
@@ -218,7 +229,9 @@ class MyApp extends StatelessWidget {
         ),
       ),
       // 세션이 있으면 지도 페이지로, 없으면 로그인 페이지로 이동
-      home: session != null ? const RunningMapPage() : const LoginPage(),
+      home: isDebugRunningTestMode || session != null
+          ? const RunningMapPage()
+          : const LoginPage(),
     );
   }
 }
