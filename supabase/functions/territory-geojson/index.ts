@@ -19,7 +19,7 @@ type UserTerritoryRpcArgs = TerritoryRpcArgs & {
 };
 
 type CrewTerritoryRpcArgs = TerritoryRpcArgs & {
-  in_crew_id: string;
+  in_crew_id: string | null;
 };
 
 type TerritoryRow = {
@@ -45,13 +45,6 @@ type Bbox = {
   minY: number;
   maxX: number;
   maxY: number;
-};
-
-type CrewMemberRow = {
-  crew_id: string;
-  joined_at: string;
-  is_default_contribution: boolean;
-  last_contributed_at: string | null;
 };
 
 type CrewRow = {
@@ -217,94 +210,47 @@ async function fetchCrewById(
   return { crew: data as CrewRow | null };
 }
 
-function compareCrewMembership(a: CrewMemberRow, b: CrewMemberRow): number {
-  if (a.is_default_contribution !== b.is_default_contribution) {
-    return a.is_default_contribution ? -1 : 1;
-  }
-
-  const aTime = new Date(a.last_contributed_at ?? a.joined_at).getTime();
-  const bTime = new Date(b.last_contributed_at ?? b.joined_at).getTime();
-  return bTime - aTime;
-}
-
 async function resolveCrewContext(
   supabase: SupabaseClient,
   userId: string,
-  crewId: string | null,
+  crewId: string,
 ): Promise<{ crew: CrewContext | null } | { response: Response }> {
-  let selectedCrewId = crewId;
-
-  if (selectedCrewId) {
-    if (!isUuid(selectedCrewId)) {
-      return {
-        response: json({ error: "crew_id must be a valid UUID" }, {
-          status: 400,
-        }),
-      };
-    }
-
-    const crewResult = await fetchCrewById(supabase, selectedCrewId);
-    if ("response" in crewResult) return crewResult;
-    if (!crewResult.crew) {
-      return { response: json({ error: "Crew not found" }, { status: 404 }) };
-    }
-
-    const { data, error } = await supabase
-      .from("crew_members")
-      .select("crew_id")
-      .eq("crew_id", selectedCrewId)
-      .eq("user_id", userId)
-      .is("left_at", null)
-      .maybeSingle();
-
-    if (error) {
-      return {
-        response: json(
-          { error: "Failed to fetch crew membership", details: error.message },
-          { status: 500 },
-        ),
-      };
-    }
-    if (!data) {
-      return {
-        response: json({ error: "Active crew membership required" }, {
-          status: 403,
-        }),
-      };
-    }
-  } else {
-    const { data, error } = await supabase
-      .from("crew_members")
-      .select(
-        "crew_id,joined_at,is_default_contribution,last_contributed_at",
-      )
-      .eq("user_id", userId)
-      .is("left_at", null);
-
-    if (error) {
-      return {
-        response: json(
-          { error: "Failed to fetch crew memberships", details: error.message },
-          { status: 500 },
-        ),
-      };
-    }
-
-    const memberships = ((data ?? []) as CrewMemberRow[])
-      .sort(compareCrewMembership);
-    if (memberships.length === 0) {
-      return { crew: null };
-    }
-
-    selectedCrewId = memberships[0].crew_id;
+  if (!isUuid(crewId)) {
+    return {
+      response: json({ error: "crew_id must be a valid UUID" }, {
+        status: 400,
+      }),
+    };
   }
 
-  const crewResult = await fetchCrewById(supabase, selectedCrewId);
+  const crewResult = await fetchCrewById(supabase, crewId);
   if ("response" in crewResult) return crewResult;
   if (!crewResult.crew) {
-    return crewId
-      ? { response: json({ error: "Crew not found" }, { status: 404 }) }
-      : { crew: null };
+    return { response: json({ error: "Crew not found" }, { status: 404 }) };
+  }
+
+  const { data, error } = await supabase
+    .from("crew_members")
+    .select("crew_id")
+    .eq("crew_id", crewId)
+    .eq("user_id", userId)
+    .is("left_at", null)
+    .maybeSingle();
+
+  if (error) {
+    return {
+      response: json(
+        { error: "Failed to fetch crew membership", details: error.message },
+        { status: 500 },
+      ),
+    };
+  }
+  if (!data) {
+    return {
+      response: json({ error: "Active crew membership required" }, {
+        status: 403,
+      }),
+    };
   }
 
   return {
@@ -442,13 +388,15 @@ Deno.serve(async (req) => {
         friendsResult.userIds,
       );
     } else if (scope === "crew") {
-      const crewResult = await resolveCrewContext(
-        supabase,
-        auth.userId,
-        crewId,
-      );
-      if ("response" in crewResult) return crewResult.response;
-      crewContext = crewResult.crew;
+      if (crewId) {
+        const crewResult = await resolveCrewContext(
+          supabase,
+          auth.userId,
+          crewId,
+        );
+        if ("response" in crewResult) return crewResult.response;
+        crewContext = crewResult.crew;
+      }
     } else if (crewId) {
       return json(
         { error: "crew_id can only be used with scope=crew" },
@@ -475,16 +423,9 @@ Deno.serve(async (req) => {
     }
 
     if (scope === "crew") {
-      if (!crewContext) {
-        return json({
-          type: "FeatureCollection",
-          features: [],
-        });
-      }
-
       const crewRpcArgs: CrewTerritoryRpcArgs = {
         ...rpcArgs,
-        in_crew_id: crewContext.id,
+        in_crew_id: crewContext?.id ?? null,
       };
       const { data, error } = await supabase.rpc(
         "get_crew_territories_geojson",
